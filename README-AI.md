@@ -26,7 +26,7 @@
 | Baza danych | PostgreSQL 16 |
 | Cache / Queue / PubSub | Redis 7 |
 | Real-time | Socket.io |
-| Drukarki | Node.js Printer Service (node-escpos + CUPS) |
+| Drukarki | Node.js Printer Service (node-escpos + CUPS) — bilety wewnętrzne, NIE paragony fiskalne |
 | Płatności | Stripe + PayU |
 | Konteneryzacja | Docker + Docker Compose (multi-arch: AMD64 + ARM64) |
 | Reverse Proxy | Nginx + Let's Encrypt SSL |
@@ -39,32 +39,32 @@
 
 ```
 [KLIENT] → Nginx (:80/443) → [Next.js Web :3000]
-                                [Next.js Dashboard :3001]
-                                [NestJS API :4000]
-                                [Socket.io WS :4001]
-                                [Printer Service :5000]
+                          [Next.js Dashboard :3001]
+                          [NestJS API :4000]
+                          [Socket.io WS :4001]
+                          [Printer Service :5000]
                                     ↓
-                              [PostgreSQL :5432]
-                              [Redis :6379]
-                              [Thermal Printers USB/NET]
+                          [PostgreSQL :5432]
+                          [Redis :6379]
+                          [Thermal Printers USB/NET]
 ```
 
 Struktura repo:
 ```
 restaurant-order-system/
 ├── apps/
-│   ├── web/                 # Strona dla klientów (Next.js)
-│   ├── dashboard/           # Panel admina/kuchni/kierowcy
-│   ├── api/                 # Backend API (NestJS)
-│   └── printer-service/     # Serwis drukarek (Node.js)
+│   ├── web/              # Strona dla klientów (Next.js)
+│   ├── dashboard/        # Panel admina/kuchni/kierowcy
+│   ├── api/              # Backend API (NestJS)
+│   └── printer-service/  # Serwis drukarek (Node.js) — bilety wewnętrzne
 ├── packages/
-│   ├── shared-types/        # Wspólne typy TypeScript
-│   ├── ui/                  # Wspólne komponenty shadcn/ui
-│   └── config/              # ESLint, TS config
+│   ├── shared-types/     # Wspólne typy TypeScript
+│   ├── ui/               # Wspólne komponenty shadcn/ui
+│   └── config/           # ESLint, TS config
 ├── infra/
-│   ├── docker/              # Dockerfile'y + docker-compose
-│   └── nginx/               # Nginx config + SSL
-└── docs/                    # Dokumentacja (11 plików)
+│   ├── docker/           # Dockerfile'y + docker-compose
+│   └── nginx/            # Nginx config + SSL
+└── docs/                 # Dokumentacja (11 plików)
 ```
 
 ---
@@ -166,11 +166,15 @@ Deliverables:
 - Eksport CSV/XLSX
 
 ### ETAP 5 — KDS i Drukarki (Tydzień 10-12)
-Cel: System obsługi kuchni i automatyczne drukowanie.
+Cel: System obsługi kuchni i automatyczne drukowanie dokumentów wewnętrznych.
+
+> **ROS drukuje wyłącznie bilety wewnętrzne (kuchenne i kierowcy). Paragon fiskalny wystawia osobna kasa fiskalna restauracji.**
 
 Deliverables:
 - Kitchen Display System (FIFO, Kanban, timer, dźwięki)
-- Printer Service (ESC/POS, szablony: kuchenny, kierowcy, paragon)
+- Printer Service (ESC/POS, szablony: kuchenny, kierowcy)
+  - Bilet kuchenny: pozycje, uwagi, alergeny — bez cen, duża czcionka
+  - Bilet kierowcy: pełne rozbicie cenowe, dane klienta — służy kasjerowi do przepisania na kasę fiskalną 1:1
 - Redis Queue + retry logic
 - Konfiguracja drukarek w dashboardzie
 
@@ -204,8 +208,8 @@ Deliverables:
 - Testy UAT
 - Wdrożenie prawdziwego menu, cen i zdjęć
 - Konfiguracja upsellu i promocji
-- Konfiguracja drukarek
-- Szkolenie personelu
+- Konfiguracja drukarek (bilety kuchenne + kierowcy)
+- Szkolenie personelu (admin, kuchnia, kierowcy, kasjerzy)
 - Dokumentacja użytkownika
 - Uruchomienie produkcyjne
 
@@ -261,24 +265,23 @@ Kluczowe KPI:
 
 ---
 
-## 8. INFORMACJE POUFNE (Placeholder)
+## 8. OGRANICZENIA I DECYZJE ARCHITEKTONICZNE
 
-NIE WPROWADZAJ PRAWDZIWYCH DANYCH DO KODU.
+### ❌ Brak modułu magazynowego (Inventory)
+System **nie monitoruje stanów magazynowych**.
+- Jeżeli brakuje składnika (np. pieczarek), personel ręcznie oznacza produkt jako niedostępny w dashboardzie (`PATCH /admin/products/:id/availability`)
+- Zmiana jest natychmiast broadcastowana przez WebSocket — produkt szarzeje/znika ze strony klienta
+- Decyzja: automatyczny magazyn generuje dodatkową pracę administracyjną, a restauracja ma ustalony proces ręczny
 
-| Dane | Placeholder | Wdrożenie |
-|------|------------|-----------|
-| Nazwa restauracji | "Restaurant Name" / process.env.RESTAURANT_NAME | Etap 8 |
-| Adres | " , " | Etap 8 |
-| Logo | /logo-placeholder.svg | Etap 8 |
-| Telefon | +48 000 000 000 | Etap 8 |
-| Domena | localhost:3000 / example.com | Etap 7 |
-| Kolory brandu | Primary: #E63946 | Etap 1 |
-
-Wszystkie dane identyfikujące z process.env lub tabeli SiteConfig.
+### ❌ Brak drukowania paragonów fiskalnych w ROS
+Restauracja posiada **własną kasę fiskalną** (działa od lat).
+- ROS drukuje wyłącznie **bilety wewnętrzne**: kuchenne (bez cen) i kierowcy (z cenami — do przepisania na kasę fiskalną 1:1)
+- Kasjer otrzymuje bilet kierowcy i przepisuje pozycje na kasę fiskalną
+- Numer zamówienia (`ZAM-YYMMDD-XXX`) jest taki sam na bilecie i w systemie — łatwe powiązanie
 
 ---
 
-## 8.5 LICENCJE I PRAWO DO ODSRPZEDAŻY (KLUCZOWE)
+## 8.5 LICENCJE I PRAWO DO ODSPRZEDAŻY (KLUCZOWE)
 
 System został zbudowany WYŁĄCZNIE na technologiach open-source z licencjami permissive:
 - MIT: Next.js, React, NestJS, Socket.io, Tailwind, shadcn/ui, bcrypt, Zod, Jest
@@ -332,13 +335,12 @@ Szczegółowy audyt: docs/licencje.md
 | docs/hardware.md | Przed deploymentem na RPi |
 | docs/moduly-przyszlosci.md | Po MVP, przy planowaniu v2 |
 
-
 ## 11. PROMPTY DO ETAPÓW (w folderze prompts/)
 
 Każdy etap ma osobny plik promptu. Wklejaj je do nowego okna AI:
 
 | Plik | Etap | Kiedy użyć |
-|------|------|-----------|
+|------|------|------------|
 | `prompts/prompt-start.md` | Zawsze | Na początku KAŻDEJ sesji |
 | `prompts/prompt-etap-00.md` | Etap 0 | Infrastruktura + setup |
 | `prompts/prompt-etap-01.md` | Etap 1 | Design System + komponenty |
@@ -378,9 +380,12 @@ Szczegóły w `docs/licencje.md`:
 
 Usługi zewnętrzne (Stripe, PayU, Google Maps) — klient płaci bezpośrednio dostawcom, nie ty.
 
-
 ---
 
-Ostatnia aktualizacja: 2026-08-12
-Wersja: 1.0
+Ostatnia aktualizacja: 2026-08-13
+Wersja: 1.1
 Status: Gotowe do implementacji (Etap 0)
+
+**Zmiany w v1.1:**
+- Dodano sekcję 8 (Ograniczenia i decyzje architektoniczne): brak modułu magazynowego, brak drukowania paragonów fiskalnych w ROS
+- Doprecyzowano rolę Printer Service (bilety wewnętrzne, nie paragony fiskalne)

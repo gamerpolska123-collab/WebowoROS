@@ -18,7 +18,7 @@ Stwórz Design System i kluczowe komponenty UI w `packages/ui/`.
 
 ### Zadanie 3: Komponenty custom (pizza-specific)
 - `PizzaBag.tsx` — torba dostawcza z 4 stanami (empty, light, medium, full)
-- `ProductCard.tsx` — karta produktu z badge'ami (bestseller, chef_choice, new, limited)
+- `ProductCard.tsx` — karta produktu z badge'ami (bestseller, chef_choice, new)
 - `FlyToBag.tsx` — animacja fly-to-bag (CSS bezier + particles)
 - `UpsellModal.tsx` — modal cross-sell (3 rekomendacje)
 - `BundleBuilder.tsx` — kreator zestawów (sloty z kategoriami)

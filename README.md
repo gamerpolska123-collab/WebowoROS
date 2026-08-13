@@ -1,6 +1,6 @@
 # Restaurant Order System
 
-> **Kompleksowy, nowoczesny system zamówień online dla restauracji z panelem zarządzania, systemem drukowania paragonów dla kuchni i kierowców oraz zaawansowanymi mechanizmami konwersji sprzedażowej.**
+> **Kompleksowy, nowoczesny system zamówień online dla restauracji z panelem zarządzania, systemem drukowania biletów wewnętrznych (kuchennych i dla kierowców) oraz zaawansowanymi mechanizmami konwersji sprzedażowej.**
 
 ---
 
@@ -14,42 +14,42 @@ Stworzenie dedykowanej platformy e-commerce dla restauracji (pizzerii), działaj
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              UŻYTKOWNIK                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │   Klient     │  │   Kuchnia    │  │  Kierowca    │  │  Administrator│   │
-│  │  (Next.js)   │  │ (Dashboard)  │  │ (Dashboard)  │  │  (Dashboard)  │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
+│ UŻYTKOWNIK                                                                 │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
+│ │ Klient       │ │ Kuchnia      │ │ Kierowca     │ │ Administrator│        │
+│ │ (Next.js)    │ │ (Dashboard)  │ │ (Dashboard)  │ │ (Dashboard)  │        │
+│ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘        │
 └─────────┼─────────────────┼─────────────────┼─────────────────┼───────────┘
           │                 │                 │                 │
           └─────────────────┴─────────────────┴─────────────────┘
                                     │
-                          ┌─────────▼──────────┐
-                          │   Nginx (Reverse   │
-                          │     Proxy + SSL)   │
-                          └─────────┬──────────┘
-                                    │
+                    ┌─────────▼──────────┐
+                    │ Nginx (Reverse     │
+                    │ Proxy + SSL)       │
+                    └─────────┬──────────┘
+                              │
           ┌─────────────────────────┼─────────────────────────┐
           │                         │                         │
-   ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
-   │   Frontend  │          │   Backend   │          │   WebSocket │
-   │   (Next.js) │◄────────►│   (NestJS)  │◄────────►│   (Socket.io)│
-   │   :3000     │   API    │   :4000     │   Pub/Sub│   :4001      │
-   └─────────────┘          └──────┬──────┘          └─────────────┘
-                                   │
+    ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
+    │ Frontend    │          │ Backend     │          │ WebSocket   │
+    │ (Next.js)   │◄────────►│ (NestJS)    │◄────────►│ (Socket.io) │
+    │ :3000       │   API    │ :4000       │  Pub/Sub │    :4001    │
+    └─────────────┘          └──────┬──────┘          └─────────────┘
+                                    │
           ┌────────────────────────┼────────────────────────┐
           │                        │                        │
-   ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
-   │  PostgreSQL │          │    Redis    │          │  Printer    │
-   │   (menu,    │          │  (sessions, │          │   Service   │
-   │  orders)    │          │   cache)    │          │  (Node.js)  │
-   │   :5432     │          │   :6379     │          │   :5000     │
-   └─────────────┘          └─────────────┘          └──────┬──────┘
-                                                            │
-                                                     ┌──────▼──────┐
-                                                     │  Thermal    │
-                                                     │  Printers   │
-                                                     │  (USB/NET)  │
-                                                     └─────────────┘
+    ┌──────▼──────┐         ┌──────▼──────┐         ┌──────▼──────┐
+    │ PostgreSQL  │         │ Redis       │         │ Printer     │
+    │ (menu,      │         │ (sessions,  │         │ Service     │
+    │ orders)     │         │ cache)      │         │ (Node.js)   │
+    │ :5432       │         │ :6379       │         │ :5000       │
+    └─────────────┘         └─────────────┘         └──────┬──────┘
+                                                           │
+                                                    ┌──────▼──────┐
+                                                    │ Thermal     │
+                                                    │ Printers    │
+                                                    │ (USB/NET)   │
+                                                    └─────────────┘
 ```
 
 ---
@@ -63,12 +63,14 @@ Stworzenie dedykowanej platformy e-commerce dla restauracji (pizzerii), działaj
 | **Baza danych** | PostgreSQL 16 | Relacyjna baza idealna do zamówień, transakcji, menu z relacjami |
 | **Cache & Queue** | Redis | Sesje, cache menu, kolejka zamówień dla drukarek |
 | **Real-time** | Socket.io | Aktualizacje statusu zamówienia na żywo (kuchnia, klient, kierowca) |
-| **Drukarki** | node-escpos + CUPS | Obsługa drukarek termicznych ESC/POS (kuchnia, kierowca, paragony fiskalne*) |
+| **Drukarki** | node-escpos + CUPS | Obsługa drukarek termicznych ESC/POS — **bilety wewnętrzne** (kuchenne i kierowcy). Paragon fiskalny wystawia osobna kasa fiskalna restauracji. |
 | **Płatności** | Stripe / PayU | Bezpieczne płatności online, 3D Secure |
 | **Konteneryzacja** | Docker + Docker Compose | Izolacja środowisk, łatwy deployment na Raspberry Pi 4 |
 | **Reverse Proxy** | Nginx | SSL, load balancing, kompresja, cache statyczny |
 | **CI/CD** | GitHub Actions | Automatyczne testy, build i deployment |
 | **Monitoring** | Prometheus + Grafana (opcjonalnie Etap 7) | Metryki wydajności, logi, alerty |
+
+> **Uwaga**: ROS drukuje wyłącznie **bilety wewnętrzne** (kuchenne i dla kierowców). Restauracja posiada osobną kasę fiskalną do wystawiania paragonów fiskalnych.
 
 ---
 
@@ -152,6 +154,10 @@ Szczegółowa dokumentacja znajduje się w folderze [`docs/`](./docs/):
 | [`docs/security.md`](./docs/security.md) | Bezpieczeństwo, płatności, GDPR, RODO |
 | [`docs/setup.md`](./docs/setup.md) | Instrukcja instalacji krok po kroku (prod + dev) |
 | [`docs/github-workflow.md`](./docs/github-workflow.md) | CI/CD, GitHub Actions, versioning |
+| [`docs/licencje.md`](./docs/licencje.md) | Audyt licencji — legalność odsprzedaży |
+| [`docs/malina-start.md`](./docs/malina-start.md) | Komendy krok po kroku na Raspberry Pi |
+| [`docs/moduly-przyszlosci.md`](./docs/moduly-przyszlosci.md) | Roadmap v2 — moduły dodatkowe |
+| [`docs/workflow.md`](./docs/workflow.md) | Jak pracować z AI — instrukcja dla użytkownika |
 
 ---
 
@@ -200,3 +206,6 @@ Projekt realizowany etapowo. Każdy etap kończy się prezentacją deliverables 
 ---
 
 *Projekt poufny. Wszelkie dane identyfikujące restaurację (nazwa, adres, logo) zostaną wdrożone w finalnej fazie implementacji.*
+
+*README v1.1 — 2026-08-13*
+*Zmiany: doprecyzowanie roli drukarek (bilety wewnętrzne, nie paragony fiskalne), aktualizacja listy dokumentacji.*

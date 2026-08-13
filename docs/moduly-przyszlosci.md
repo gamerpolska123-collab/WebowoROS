@@ -4,41 +4,15 @@
 
 ---
 
-## 1. Zarządzanie Składnikami (Inventory / Magazyn)
+## ❌ Moduł wykluczony z MVP i v2: Zarządzanie Składnikami (Inventory / Magazyn)
 
-### Problem
-Restauracja kończy się pieczarki → pizza Capriciosa powinna automatycznie stać się niedostępna na stronie.
-
-### Architektura
-```
-Product (pizza) ←── Recipe ──→ Ingredient (pieczarki)
-                          (ilość na sztukę)
-```
-
-### Funkcjonalności
-- **Recipe (przepis)** — każdy produkt ma listę składników z ilościami
-- **Stock level** — aktualny stan magazynowy (ręczna aktualizacja lub integracja z systemem magazynowym)
-- **Auto-unavailable** — gdy stan składnika < próg, produkty go używające stają się niedostępne
-- **Alerty** — powiadomienie do admina gdy składników jest mało
-- **Dashboard** — widok "Co możemy dziś zrobić?" na podstawie stanu magazynu
-
-### Model danych
-```
-Ingredient:
-  id, name, unit (kg/szt/l), current_stock, min_threshold, alert_enabled
-
-Recipe:
-  id, product_id, ingredient_id, quantity_per_unit
-
-StockLog:
-  id, ingredient_id, change_amount, reason (order/manual/adjustment), timestamp
-```
-
-### Priorytet: WYSOKI (wdrożyć w 2-3 miesiące po MVP)
+> **Decyzja**: System **nie posiada modułu magazynowego**.  
+> Jeżeli składnika zabraknie, personel ręcznie oznacza produkt jako niedostępny w dashboardzie (toggle `isAvailable`).  
+> To świadoma decyzja — restauracja ma ustalony proces, a automatyczny magazyn wymagałby ciągłego utrzymywania stanów, co generuje dodatkową pracę administracyjną.
 
 ---
 
-## 2. Zamówienia na Później (Pre-order)
+## 1. Zamówienia na Później (Pre-order)
 
 ### Problem
 Klient chce zamówić pizzę na 19:30, ale jest teraz 15:00.
@@ -66,7 +40,7 @@ GET /admin/schedule?date=2024-08-15
 
 ---
 
-## 3. Kody Rabatowe i Vouchery
+## 2. Kody Rabatowe i Vouchery
 
 ### Problem
 Restauracja chce wysłać kupon "WITAJ10" nowym klientom lub "URODZINY" dla stałych.
@@ -82,7 +56,7 @@ Restauracja chce wysłać kupon "WITAJ10" nowym klientom lub "URODZINY" dla sta�
 ```
 Voucher:
   id, code, type (percent/fixed/free_delivery/free_product)
-  value, min_order_value, max_discount, 
+  value, min_order_value, max_discount,
   usage_limit_total, usage_limit_per_user,
   valid_from, valid_to, applicable_products[], applicable_categories[],
   is_active, usage_count
@@ -95,7 +69,7 @@ OrderVoucher:
 
 ---
 
-## 4. System Lojalnościowy (Punkty)
+## 3. System Lojalnościowy (Punkty)
 
 ### Problem
 Zatrzymanie klienta jest tańsze niż pozyskanie nowego.
@@ -112,7 +86,7 @@ Zatrzymanie klienta jest tańsze niż pozyskanie nowego.
 
 ---
 
-## 5. Powiadomienia SMS i Email
+## 4. Powiadomienia SMS i Email
 
 ### Kanały
 | Wydarzenie | SMS | Email | Push |
@@ -137,7 +111,7 @@ Właściciel może edytować treść SMS/email bez dewelopera.
 
 ---
 
-## 6. Zarządzanie Kierowcami (GPS i Trasy)
+## 5. Zarządzanie Kierowcami (GPS i Trasy)
 
 ### Problem
 Właściciel nie wie gdzie jest kierowca i ile mu zajmie dostawa.
@@ -159,7 +133,7 @@ Właściciel nie wie gdzie jest kierowca i ile mu zajmie dostawa.
 
 ---
 
-## 7. Zamówienia Grupowe / Catering
+## 6. Zamówienia Grupowe / Catering
 
 ### Problem
 Firmy zamawiają 10-20 pizz na spotkanie. Potrzebują faktury i innego flow.
@@ -175,7 +149,7 @@ Firmy zamawiają 10-20 pizz na spotkanie. Potrzebują faktury i innego flow.
 
 ---
 
-## 8. System Opinii i Reklamacji
+## 7. System Opinii i Reklamacji
 
 ### Funkcjonalności
 - Prośba o opinię 30 min po dostawie (SMS/email z linkiem)
@@ -189,7 +163,7 @@ Firmy zamawiają 10-20 pizz na spotkanie. Potrzebują faktury i innego flow.
 
 ---
 
-## 9. Analityka Zaawansowana
+## 8. Analityka Zaawansowana
 
 ### Metryki (dostępne z dashboardu)
 - **Cohort Analysis** — jak zachowują się klienci z miesiąca X w kolejnych miesiącach
@@ -209,7 +183,7 @@ Firmy zamawiają 10-20 pizz na spotkanie. Potrzebują faktury i innego flow.
 
 ---
 
-## 10. Multi-Location (Sieć restauracji)
+## 9. Multi-Location (Sieć restauracji)
 
 ### Problem
 W przyszłości właściciel może otworzyć drugą lokalizację.
@@ -224,7 +198,7 @@ W przyszłości właściciel może otworzyć drugą lokalizację.
 
 ---
 
-## 11. Integracje Zewnętrzne
+## 10. Integracje Zewnętrzne
 
 | System | Integracja | Cel |
 |--------|-----------|-----|
@@ -239,7 +213,7 @@ W przyszłości właściciel może otworzyć drugą lokalizację.
 
 ---
 
-## 12. Testowanie i Jakość (QA Strategy)
+## 11. Testowanie i Jakość (QA Strategy)
 
 ### Brakujący w MVP element — warto dodać do Etapu 0/1
 
@@ -267,7 +241,7 @@ Unit Tests (Jest) ──► Integration Tests (Supertest) ──► E2E (Playwri
 
 ---
 
-## 13. Performance Budget
+## 12. Performance Budget
 
 ### Cele wydajnościowe (do zdefiniowania w Etapie 1)
 
@@ -284,7 +258,7 @@ Unit Tests (Jest) ──► Integration Tests (Supertest) ──► E2E (Playwri
 
 ---
 
-## 14. Anti-Fraud i Ochrona Przed Nadużyciami
+## 13. Anti-Fraud i Ochrona Przed Nadużyciami
 
 ### Zagrożenia
 - **Fake orders** — zamówienia na nieistniejący adres
@@ -306,8 +280,7 @@ Unit Tests (Jest) ──► Integration Tests (Supertest) ──► E2E (Playwri
 
 | Moduł | Szacowany czas | Kiedy wdrożyć |
 |-------|---------------|---------------|
-| Inventory / Magazyn | 2 tygodnie | 2-3 miesiące po MVP |
-| Pre-order (na później) | 1 tydzień | 1-2 miesiące po MVP |
+| Zamówienia na później | 1 tydzień | 1-2 miesiące po MVP |
 | Kody rabatowe | 1 tydzień | 1-2 miesiące po MVP |
 | Powiadomienia SMS | 3 dni | Od startu (podstawowe) |
 | System lojalnościowy | 2 tygodnie | 3-6 miesięcy po MVP |
@@ -317,4 +290,9 @@ Unit Tests (Jest) ──► Integration Tests (Supertest) ──► E2E (Playwri
 | Zaawansowana analityka | 1 tydzień | Ciągłość (iteracyjnie) |
 | Integracje zewnętrzne | 1-3 dni each | Na życzenie |
 
-> **Rekomendacja**: Zaimplementować moduły "Inventory", "Pre-order" i "SMS" możliwie szybko po MVP — są one kluczowe dla codziennej operacji restauracji.
+> **Rekomendacja**: Zaimplementować moduły "Pre-order" i "SMS" możliwie szybko po MVP — są one kluczowe dla codziennej operacji restauracji.
+
+---
+
+*Moduły v2 v1.1 — 2026-08-13*  
+*Zmiany: usunięcie modułu Inventory/Magazyn (personel ręcznie oznacza braki), aktualizacja priorytetów.*

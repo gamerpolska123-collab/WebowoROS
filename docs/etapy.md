@@ -39,7 +39,7 @@
   - Bundle builder
   - Progress bar "darmowa dostawa"
 - [ ] Prototypy interaktywne (Figma) dla:
-  - Strony głównej z menu i torbą
+  - Strony głównej z menu i torebą
   - Modalu dodatków do pizzy (graficzny konfigurator)
   - Modalu upsellu (cross-sell)
   - Ekranu torby (rozwiniętej)
@@ -145,7 +145,7 @@
   - Dodawanie/edycja/usuwanie kategorii i produktów
   - Zarządzanie wariantami (rozmiary pizzy) i dodatkami
   - **Zmiana cen z natychmiastową synchronizacją na stronie klienta** (WebSocket broadcast)
-  - Zarządzanie dostępnością produktów (toggle "dziś niedostępne")
+  - Zarządzanie dostępnością produktów (toggle "dziś niedostępne") — **ręcznie przez personel, bez modułu magazynowego**
   - **Inline editing cen** (kliknij cenę → wpisz nową → Enter)
   - **Historia zmian cen** (wykres + audyt: kto, kiedy, stara→nowa)
 - [ ] **Zarządzanie upsellem i konwersją**:
@@ -189,7 +189,9 @@
 
 ## Etap 5: Kitchen Display System (KDS) i Drukarki (Tydzień 10-12)
 
-**Cel**: System obsługi kuchni i automatycznego drukowania dokumentów.
+**Cel**: System obsługi kuchni i automatyczne drukowanie dokumentów wewnętrznych.
+
+> **ROS drukuje wyłącznie bilety wewnętrzne. Paragon fiskalny wystawia osobna kasa fiskalna restauracji.**
 
 ### Deliverables
 - [ ] **KDS (Kitchen Display System)**:
@@ -201,18 +203,18 @@
   - Tryb "Bump" (przesuwanie między kolumnami jak Kanban)
 - [ ] **Serwis drukarek (Printer Service)**:
   - Obsługa drukarek termicznych ESC/POS (USB i Ethernet)
-  - Szablony wydruków:
-    - **Bilet kuchenny** (pozycje, uwagi, czas zamówienia)
-    - **Bilet kierowcy** (adres, telefon, uwagi do dostawy, mapa QR)
-    - **Paragon fiskalny** (integracja z drukarką fiskalną via API dostawcy)
-  - Automatyczny wydruk przy nowym zamówieniu
+  - **Dwa szablony wydruków** (ROS nie drukuje paragonów fiskalnych):
+    - **Bilet kuchenny** (Kitchen Ticket): pozycje, uwagi, czas zamówienia, alergeny — bez cen, duża czcionka
+    - **Bilet kierowcy** (Driver Ticket): pełne rozbicie pozycji z cenami, dane klienta, adres, napiwek, suma do zapłaty — służy kasjerowi do przepisania na kasę fiskalną 1:1
+  - Automatyczny wydruk przy nowym zamówieniu (bilet kuchenny) i przy statusie "gotowe" (bilet kierowcy)
   - Kolejka wydruków (Redis Queue) z retry logic
-- [ ] Konfiguracja drukarek w dashboardzie (IP, port, typ szablonu)
+- [ ] Konfiguracja drukarek w dashboardzie (IP, port, typ szablonu, przypisanie do kuchni/kierowcy)
 
 ### Kryteria akceptacji
-- Nowe zamówienie drukuje się w < 5 sekund od złożenia
+- Nowe zamówienie drukuje bilet kuchenny w < 5 sekund od złożenia
+- Bilet kierowcy zawiera pełne rozbicie cenowe — kasjer przepisuje 1:1 na kasę fiskalną bez zgadywania
 - KDS działa bezawaryjnie przez 8h ciągłej pracy
-- Możliwość podłączenia min. 3 drukarek jednocześnie (kuchnia, kierowca, kasa)
+- Możliwość podłączenia min. 2 drukarek jednocześnie (kuchnia + kierowca/kasa)
 
 ---
 
@@ -270,11 +272,12 @@
 - [ ] Testy UAT (User Acceptance Testing) z personelem restauracji
 - [ ] Wdrożenie prawdziwego menu, cen i zdjęć
 - [ ] Konfiguracja upsellu i promocji zgodnie z preferencjami właściciela
-- [ ] Konfiguracja drukarek na miejscu
+- [ ] Konfiguracja drukarek na miejscu (bilety kuchenne + kierowcy)
 - [ ] Szkolenie:
   - Administrator (dashboard, raporty, zarządzanie cenami i upsellem)
-  - Kuchnia (KDS, obsługa zamówień)
+  - Kuchnia (KDS, obsługa zamówień, oznaczanie produktów jako niedostępne)
   - Kierowcy (aplikacja, wydruki)
+  - Kasjer (jak czytać bilet kierowcy i przepisywać na kasę fiskalną)
 - [ ] Dokumentacja użytkownika (PDF / wiki)
 - [ ] Umowa serwisowa i SLA (opcjonalnie)
 - [ ] Uruchomienie produkcyjne 🚀
@@ -282,6 +285,7 @@
 ### Kryteria akceptacji
 - Personel samodzielnie obsługuje system po 2h szkolenia
 - Właściciel samodzielnie zmienia ceny i konfiguruje upsell
+- Kierowca odbiera bilet z pełnym rozbiciem cen — kasjer przepisuje w < 30 sekund
 - Brak krytycznych bugów przez 72h testów produkcyjnych
 - Klient akceptuje system i przekazuje finalną płatność
 
@@ -296,7 +300,7 @@
 | 2 | 2-3 tygodnie | Działające API + baza (z upsell configs) |
 | 3 | 3-4 tygodnie | Strona zamówień z torbą, animacjami i upsellem |
 | 4 | 2 tygodnie | Panel admina z pełną konfiguracją |
-| 5 | 2 tygodnie | Kuchnia + drukarki |
+| 5 | 2 tygodnie | Kuchnia + drukarki (bilety wewnętrzne) |
 | 6 | 1 tydzień | Płatności + security |
 | 7 | 1-2 tygodnie | Raspberry Pi + monitoring |
 | 8 | 1-2 tygodnie | Odbiór + szkolenie |
@@ -311,3 +315,8 @@ Po zakończeniu Etapu 1 każda zmiana wymaga:
 2. Oszacowania wpływu na timeline
 3. Akceptacji przez Klienta (dla zmian > 4h pracy)
 4. Aktualizacji dokumentacji
+
+---
+
+*Etapy v1.1 — 2026-08-13*  
+*Zmiany: doprecyzowanie Etapu 5 (bilety wewnętrzne zamiast paragonów fiskalnych), bilet kierowcy jako źródło dla kasy, szkolenie kasjerów.*

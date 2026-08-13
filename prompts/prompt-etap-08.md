@@ -22,14 +22,15 @@ Finalne testy, wdrożenie danych klienta, szkolenie, uruchomienie produkcyjne.
 
 ### Zadanie 3: Konfiguracja Drukarek
 - Podłącz drukarki termiczne do RPi (USB / Ethernet)
-- Skonfiguruj w dashboardzie (IP, port, typ szablonu)
-- Test wydruku: bilet kuchenny, bilet kierowcy, paragon
+- Skonfiguruj w dashboardzie (IP, port, typ szablonu: kitchen/driver)
+- Test wydruku: bilet kuchenny, bilet kierowcy
 - Weryfikacja: < 5s od zamówienia do wydruku
 
 ### Zadanie 4: Szkolenie
 - `docs/TRAINING-ADMIN.md` — instrukcja dla administratora (dashboard, raporty, zmiana cen)
-- `docs/TRAINING-KITCHEN.md` — instrukcja dla kuchni (KDS, obsługa zamówień)
+- `docs/TRAINING-KITCHEN.md` — instrukcja dla kuchni (KDS, obsługa zamówień, oznaczanie produktów jako niedostępne)
 - `docs/TRAINING-DRIVER.md` — instrukcja dla kierowcy (aplikacja, wydruki)
+- `docs/TRAINING-CASHIER.md` — instrukcja dla kasjera (jak czytać bilet kierowcy i przepisywać na kasę fiskalną)
 - Przeprowadź szkolenie (2h) i zbierz podpisy
 
 ### Zadanie 5: Dokumentacja Użytkownika

@@ -1,5 +1,9 @@
 # Architektura Systemu
 
+> **Ważne**: System nie posiada modułu magazynowego (inventory). Dostępność produktów jest zarządzana **ręcznie** przez personel w dashboardzie (toggle `isAvailable`). Braki składników (np. zabrakło pieczarek) obsługuje kuchnia przez oznaczenie produktu jako niedostępny — bez automatycznej synchronizacji ze stanem magazynowym.
+
+---
+
 ## 1. Filozofia architektoniczna
 
 System oparty na **modularnej architekturze mikroserwisów lekkich** (modular monolith z wyodrębnionymi serwisami tam, gdzie to uzasadnione). Priorytety:
@@ -15,43 +19,43 @@ System oparty na **modularnej architekturze mikroserwisów lekkich** (modular mo
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                              UŻYTKOWNIK                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │   Klient     │  │   Kuchnia    │  │  Kierowca    │  │  Administrator│   │
-│  │  (Next.js)   │  │ (Dashboard)  │  │ (Dashboard)  │  │  (Dashboard)  │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
+│ UŻYTKOWNIK │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
+│ │ Klient │ │ Kuchnia │ │ Kierowca │ │ Administrator│ │
+│ │ (Next.js) │ │ (Dashboard) │ │ (Dashboard) │ │ (Dashboard) │ │
+│ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ │
 └─────────┼─────────────────┼─────────────────┼─────────────────┼───────────┘
           │                 │                 │                 │
           └─────────────────┴─────────────────┴─────────────────┘
                                     │
-                          ┌─────────▼──────────┐
-                          │   Nginx (Reverse   │
-                          │     Proxy + SSL)   │
-                          └─────────┬──────────┘
-                                    │
+                    ┌─────────▼──────────┐
+                    │ Nginx (Reverse │
+                    │ Proxy + SSL) │
+                    └─────────┬──────────┘
+                              │
           ┌─────────────────────────┼─────────────────────────┐
           │                         │                         │
-   ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
-   │   Frontend  │          │   Backend   │          │   WebSocket │
-   │   (Next.js) │◄────────►│   (NestJS)  │◄────────►│   (Socket.io)│
-   │   :3000     │   API    │   :4000     │   Pub/Sub│   :4001      │
-   └─────────────┘          └──────┬──────┘          └─────────────┘
-                                   │
+    ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
+    │ Frontend │          │ Backend │          │ WebSocket │
+    │ (Next.js) │◄────────►│ (NestJS) │◄────────►│ (Socket.io)│
+    │ :3000 │     API     │ :4000 │    Pub/Sub│    :4001 │
+    └─────────────┘          └──────┬──────┘          └─────────────┘
+                                    │
           ┌────────────────────────┼────────────────────────┐
           │                        │                        │
-   ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
-   │  PostgreSQL │          │    Redis    │          │  Printer    │
-   │   (menu,    │          │  (sessions, │          │   Service   │
-   │  orders,    │          │   cache,    │          │  (Node.js)  │
-   │  config)    │          │   pub/sub)  │          │   :5000     │
-   │   :5432     │          │   :6379     │          └──────┬──────┘
-   └─────────────┘          └─────────────┘                 │
-                                                            │
-                                                     ┌──────▼──────┐
-                                                     │  Thermal    │
-                                                     │  Printers   │
-                                                     │  (USB/NET)  │
-                                                     └─────────────┘
+    ┌──────▼──────┐         ┌──────▼──────┐         ┌──────▼──────┐
+    │ PostgreSQL │         │ Redis │         │ Printer │
+    │ (menu, │         │ (sessions, │         │ Service │
+    │ orders, │         │ cache, │         │ (Node.js) │
+    │ config) │         │ pub/sub) │         │ :5000 │
+    │ :5432 │         │ :6379 │         └──────┬──────┘
+    └─────────────┘         └─────────────┘                │
+                                                           │
+                                                    ┌──────▼──────┐
+                                                    │ Thermal │
+                                                    │ Printers │
+                                                    │ (USB/NET) │
+                                                    └─────────────┘
 ```
 
 ---
@@ -62,71 +66,73 @@ System oparty na **modularnej architekturze mikroserwisów lekkich** (modular mo
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    Category     │     │    Product      │     │    Variant      │
+│ Category │     │ Product │     │ Variant │
 ├─────────────────┤     ├─────────────────┤     ├─────────────────┤
-│ id (PK)         │────►│ id (PK)         │────►│ id (PK)         │
-│ name            │     │ name            │     │ product_id (FK) │
-│ slug            │     │ description     │     │ name            │
-│ sort_order      │     │ category_id(FK) │     │ price_adjustment│
-│ is_active       │     │ base_price      │     │ is_active       │
-│ image_url       │     │ image_url       │     └─────────────────┘
-└─────────────────┘     │ is_available    │
-                        │ is_featured     │
-                        │ tags[]          │
+│ id (PK) │────►│ id (PK) │────►│ id (PK) │
+│ name │     │ name │     │ product_id (FK) │
+│ slug │     │ description │     │ name │
+│ sort_order │     │ category_id(FK) │     │ price_adjustment│
+│ is_active │     │ base_price │     │ is_active │
+│ image_url │     │ image_url │     └─────────────────┘
+└─────────────────┘     │ is_available │     ← RĘCZNE toggle przez personel
+                        │ is_featured │         (brak modułu magazynowego)
+                        │ tags[] │
                         └─────────────────┘
-                                 │
-                                 │
-                        ┌────────▼────────┐
-                        │  ProductAddon   │
+                               │
+                               │
+                        ┌──────▼────────┐
+                        │ ProductAddon │
                         ├─────────────────┤
-                        │ id (PK)         │
+                        │ id (PK) │
                         │ product_id (FK) │
-                        │ name            │
-                        │ price           │
-                        │ max_quantity    │
-                        │ is_active       │
+                        │ name │
+                        │ price │
+                        │ max_quantity │
+                        │ is_active │
                         └─────────────────┘
 ```
 
-### 3.2 Konfiguracja Upsellu i Rekomendacji (NOWE)
+**Uwaga do `Product.isAvailable`**: Pole to jest zarządzane wyłącznie ręcznie przez personel w dashboardzie. Gdy w kuchni zabraknie składnika (np. pieczarek), kucharz lub manager oznacza produkt jako `isAvailable = false`. System **nie** monitoruje stanów magazynowych automatycznie.
+
+### 3.2 Konfiguracja Upsellu i Rekomendacji
 
 ```
 ┌─────────────────────┐     ┌─────────────────────┐
-│   UpsellConfig      │     │   BundleConfig      │
+│ UpsellConfig │     │ BundleConfig │
 ├─────────────────────┤     ├─────────────────────┤
-│ id (PK)             │     │ id (PK)             │
-│ name                │     │ name                │
-│ type                │     │ discount_type       │
-│   (cross_sell|      │     │   (percent|fixed)   │
-│    bundle|          │     │ discount_value      │
-│    last_minute|     │     │ is_active           │
-│    threshold)       │     │ slots (JSON)        │
-│ rules (JSON)        │     │   [{category_id,    │
-│   {trigger_product, │     │     quantity}]       │
-│    recommended[],   │     └─────────────────────┘
-│    threshold_amount,│
-│    discount}        │
-│ is_active           │
-│ priority            │
+│ id (PK) │     │ id (PK) │
+│ name │     │ name │
+│ type │     │ discount_type │
+│ (cross_sell| │     │ (percent|fixed) │
+│ bundle| │     │ discount_value │
+│ last_minute| │     │ is_active │
+│ threshold) │     │ slots (JSON) │
+│ rules (JSON) │     │ [{category_id, │
+│ {trigger_product, │     │ quantity}] │
+│ recommended[], │     └─────────────────────┘
+│ threshold_amount,│
+│ discount} │
+│ is_active │
+│ priority │
 └─────────────────────┘
 
 ┌─────────────────────┐     ┌─────────────────────┐
-│   PromoConfig       │     │   ProductBadge      │
+│ PromoConfig │     │ ProductBadge │
 ├─────────────────────┤     ├─────────────────────┤
-│ id (PK)             │     │ id (PK)             │
-│ name                │     │ product_id (FK)     │
-│ type                │     │ badge_type          │
-│   (discount|        │     │   (bestseller|new|  │
-│    free_delivery|   │     │    chef_choice|     │
-│    addon_deal)      │     │    limited)         │
-│ conditions (JSON)   │     │ is_active           │
-│   {min_order_value, │     │ expires_at          │
-│    applicable_to,   │     └─────────────────────┘
-│    time_range}      │
-│ reward (JSON)       │
-│ start_date          │
-│ end_date            │
-│ is_active           │
+│ id (PK) │     │ id (PK) │
+│ name │     │ product_id (FK) │
+│ type │     │ badge_type │
+│ (discount| │     │ (bestseller|new| │
+│ free_delivery| │     │ chef_choice| │
+│ addon_deal) │     │ limited) │
+│ conditions (JSON) │     │ is_active │
+│ {min_order_value, │     │ expires_at │
+│ applicable_to, │     └─────────────────────┘
+│ time_range} │
+│ reward (JSON) │
+│ start_date │
+│ end_date │
+│ is_active │
 └─────────────────────┘
 ```
 
@@ -134,33 +140,33 @@ System oparty na **modularnej architekturze mikroserwisów lekkich** (modular mo
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│     Order       │────►│   OrderItem     │────►│ OrderItemAddon  │
+│ Order │────►│ OrderItem │────►│ OrderItemAddon │
 ├─────────────────┤     ├─────────────────┤     ├─────────────────┤
-│ id (PK)         │     │ id (PK)         │     │ id (PK)         │
-│ user_id (FK)    │     │ order_id (FK)   │     │ order_item_id   │
-│ status          │     │ product_id (FK) │     │ addon_id (FK)   │
-│ total_amount    │     │ variant_id (FK) │     │ quantity        │
-│ delivery_type   │     │ quantity        │     │ price           │
-│ payment_status  │     │ unit_price      │     └─────────────────┘
-│ address JSON    │     │ notes           │
-│ phone           │     └─────────────────┘
-│ created_at      │
-│ estimated_time  │
-│ applied_promos  │
-│   (JSON array)  │
+│ id (PK) │     │ id (PK) │     │ id (PK) │
+│ user_id (FK) │     │ order_id (FK) │     │ order_item_id │
+│ status │     │ product_id (FK) │     │ addon_id (FK) │
+│ total_amount │     │ variant_id (FK) │     │ quantity │
+│ delivery_type │     │ quantity │     │ price │
+│ payment_status │     │ unit_price │     └─────────────────┘
+│ address JSON │     │ notes │
+│ phone │     └─────────────────┘
+│ created_at │
+│ estimated_time │
+│ applied_promos │
+│ (JSON array) │
 └─────────────────┘
 
 ┌─────────────────┐     ┌─────────────────┐
-│     User        │     │  PriceHistory   │
+│ User │     │ PriceHistory │
 ├─────────────────┤     ├─────────────────┤
-│ id (PK)         │     │ id (PK)         │
-│ email           │     │ product_id (FK) │
-│ phone           │     │ variant_id (FK) │
-│ password_hash   │     │ old_price       │
-│ role            │     │ new_price       │
-│ addresses JSON  │     │ changed_by (FK) │
-│ preferences     │     │ changed_at      │
-│   (JSON)        │     │ reason          │
+│ id (PK) │     │ id (PK) │
+│ email │     │ product_id (FK) │
+│ phone │     │ variant_id (FK) │
+│ password_hash │     │ old_price │
+│ role │     │ new_price │
+│ addresses JSON │     │ changed_by (FK) │
+│ preferences │     │ changed_at │
+│ (JSON) │     │ reason │
 └─────────────────┘     └─────────────────┘
 ```
 
@@ -169,45 +175,50 @@ System oparty na **modularnej architekturze mikroserwisów lekkich** (modular mo
 ## 4. Flow zamówienia (z upsellem)
 
 ```
-Klient              Frontend           API             Redis/DB       PrinterSvc
-  │                   │                 │                 │                │
-  │  1. Przegląda menu│                 │                 │                │
-  │◄─────────────────►│  GET /menu      │                 │                │
-  │                   │────────────────►│                 │                │
-  │                   │                 │  SELECT + JOIN  │                │
-  │                   │                 │  upsell configs │                │
-  │                   │◄────────────────│                 │                │
-  │                   │                 │                 │                │
-  │  2. Klika "Dodaj" │                 │                 │                │
-  │                   │  POST /cart/add │                 │                │
-  │                   │────────────────►│                 │                │
-  │                   │                 │  Sprawdź reguły │                │
-  │                   │                 │  upsell dla     │                │
-  │                   │                 │  produktu X     │                │
-  │                   │◄────────────────│                 │                │
-  │  3. Modal upsell  │                 │                 │                │
-  │◄───────────────── │  {recommendations│                │                │
-  │                   │   [cola, sos]}  │                 │                │
-  │                   │                 │                 │                │
-  │  4. Klient dodaje │                 │                 │                │
-  │     rekomendację  │                 │                 │                │
-  │                   │                 │                 │                │
-  │  5. Checkout      │                 │                 │                │
-  │  ────────────────►│  POST /orders   │                 │                │
-  │                   │────────────────►│                 │                │
-  │                   │                 │  BEGIN TRAN     │                │
-  │                   │                 │  INSERT order   │                │
-  │                   │                 │  COMMIT         │                │
-  │                   │                 │  PUBLISH        │                │
-  │                   │                 │  "new_order"    │                │
-  │                   │                 │────────────────►│                │
-  │                   │                 │                 │  LPUSH queue   │
-  │                   │                 │                 │───────────────►│
-  │                   │                 │                 │                │  PRINT
-  │                   │  201 Created    │                 │                │
-  │  6. Potwierdzenie │◄────────────────│                 │                │
-  │◄───────────────── │                 │                 │                │
+Klient         Frontend        API       Redis/DB    PrinterSvc
+  │               │              │            │            │
+  │ 1. Przegląda menu│              │            │            │
+  │◄───────────────►│ GET /menu    │            │            │
+  │               │────────────►│            │            │
+  │               │              │ SELECT + JOIN│            │
+  │               │              │ upsell configs│            │
+  │               │◄────────────│            │            │
+  │               │              │            │            │
+  │ 2. Klika "Dodaj" │              │            │            │
+  │               │ POST /cart/add│            │            │
+  │               │────────────►│            │            │
+  │               │              │ Sprawdź reguły│            │
+  │               │              │ upsell dla │            │
+  │               │              │ produktu X │            │
+  │               │◄────────────│            │            │
+  │ 3. Modal upsell │              │            │            │
+  │◄─────────────── │ {recommendations│            │            │
+  │               │ [cola, sos]} │            │            │
+  │               │              │            │            │
+  │ 4. Klient dodaje │              │            │            │
+  │ rekomendację  │              │            │            │
+  │               │              │            │            │
+  │ 5. Checkout   │              │            │            │
+  │ ──────────────►│ POST /orders │            │            │
+  │               │────────────►│            │            │
+  │               │              │ BEGIN TRAN │            │
+  │               │              │ INSERT order│            │
+  │               │              │ COMMIT     │            │
+  │               │              │ PUBLISH    │            │
+  │               │              │ "new_order"│            │
+  │               │              │────────────►│            │
+  │               │              │            │ LPUSH queue │
+  │               │              │            │───────────►│
+  │               │              │            │            │ PRINT
+  │               │              │            │            │ (bilet kuchenny)
+  │               │ 201 Created  │            │            │
+  │ 6. Potwierdzenie │◄────────────│            │            │
+  │◄─────────────── │              │            │            │
 ```
+
+**Wydruk biletów**:
+- **Bilet kuchenny** — drukowany natychmiast po złożeniu zamówienia (zawiera pozycje, uwagi, alergeny, bez cen)
+- **Bilet kierowcy** — drukowany gdy kuchnia oznaczy zamówienie jako "gotowe" (zawiera pełne rozbicie cenowe, dane klienta — służy kasjerowi do przepisania na kasę fiskalną 1:1)
 
 ---
 
@@ -217,7 +228,7 @@ Klient              Frontend           API             Redis/DB       PrinterSvc
 |------|-------------|
 | `guest` | Przeglądanie menu, składanie zamówienia bez logowania |
 | `customer` | Historia zamówień, zapisane adresy, ulubione produkty |
-| `kitchen` | Dostęp do KDS, zmiana statusu zamówienia |
+| `kitchen` | Dostęp do KDS, zmiana statusu zamówienia, oznaczanie produktów jako niedostępne |
 | `driver` | Lista dostaw, wydruk biletu kierowcy, zmiana statusu |
 | `admin` | Pełny dostęp: menu, ceny, upsell, promocje, raporty, użytkownicy |
 
@@ -256,3 +267,13 @@ Klient              Frontend           API             Redis/DB       PrinterSvc
 - API zapisuje w DB + publikuje event `price_updated` na Redis Pub/Sub
 - WebSocket Gateway broadcastuje do wszystkich podłączonych klientów
 - Frontend aktualizuje cenę na żywo (bez przeładowania)
+
+### Braki składników (ręczna obsługa)
+- Personel (kuchnia/manager) oznacza produkt jako niedostępny w dashboardzie (`PATCH /admin/products/:id/availability`)
+- Zmiana jest broadcastowana przez WebSocket — produkt staje się szary/ukryty na stronie klienta
+- Brak automatycznej synchronizacji z magazynem — to świadoma decyzja architektoniczna
+
+---
+
+*Architektura v1.1 — 2026-08-13*  
+*Zmiany: doprecyzowanie braku modułu magazynowego, ręczne zarządzanie dostępnością, rozdzielenie biletów kuchennych i kierowcy.*

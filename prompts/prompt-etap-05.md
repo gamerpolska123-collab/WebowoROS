@@ -3,7 +3,9 @@
 Wykonaj ETAP 5 projektu Restaurant Order System.
 
 ## Cel
-System obsługi kuchni (KDS) + automatyczne drukowanie paragonów.
+System obsługi kuchni (KDS) + automatyczne drukowanie biletów wewnętrznych.
+
+> **ROS drukuje wyłącznie bilety wewnętrzne (kuchenne i dla kierowców). Paragon fiskalny wystawia osobna kasa fiskalna restauracji.**
 
 ## Zadania:
 
@@ -26,20 +28,21 @@ System obsługi kuchni (KDS) + automatyczne drukowanie paragonów.
 - `templates/kitchen-ticket.ts` — bilet kuchenny:
   - Numer zamówienia, godzina
   - Lista pozycji (nazwa, wariant, dodatki, uwagi)
-  - Grupowanie
+  - Grupowanie, bez cen, duża czcionka
 - `templates/driver-ticket.ts` — bilet kierowcy:
-  - Adres, telefon, piętro, domofon
-  - Uwagi do dostawy
-  - QR code z mapą (opcjonalnie)
-- `templates/receipt.ts` — paragon (dla kasy)
+  - Pełne rozbicie pozycji z cenami
+  - Dane klienta (imię, adres, telefon, uwagi)
+  - Suma do zapłaty, napiwek, dostawa
+  - Służy kasjerowi do przepisania na kasę fiskalną 1:1
 
 ### Zadanie 4: Konfiguracja Drukarek w Dashboardzie
 - `PrinterConfigPage.tsx` — lista drukarek
-- `PrinterForm.tsx` — dodawanie drukarki (nazwa, IP/port lub USB, typ szablonu)
+- `PrinterForm.tsx` — dodawanie drukarki (nazwa, IP/port lub USB, typ szablonu: kitchen/driver)
 - Test wydruku z dashboardu
 
 ### Zadanie 5: Integracja z API
-- Nowe zamówienie → API publikuje event "new_order" na Redis
+- Nowe zamówienie → API publikuje event "new_order" na Redis → drukuje bilet kuchenny
+- Status "gotowe" → API publikuje event "order_ready" → drukuje bilet kierowcy
 - Printer Service odbiera z kolejki → drukuje → potwierdza
 - Status wydruku widoczny w dashboardzie
 

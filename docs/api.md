@@ -224,7 +224,7 @@ Szybka zmiana ceny (inline editing).
   "reason": "Promocja weekendowa"
 }
 ```
-**Efekt uboczny**: 
+**Efekt uboczny**:
 - Zapis do `PriceHistory`
 - Broadcast `price_updated` via WebSocket
 - Invalidacja cache Redis
@@ -235,6 +235,8 @@ Szybka zmiana ceny (inline editing).
 { "isAvailable": false }
 ```
 **Efekt uboczny**: Broadcast `product_unavailable` - produkt szary/ukryty na stronie.
+
+> **Uwaga**: Dostępność produktu jest zarządzana **ręcznie** przez personel w dashboardzie. System nie posiada modułu magazynowego — braki składników obsługuje personel przez oznaczenie produktu jako niedostępny.
 
 #### PUT /admin/products/:id/variants/:variantId
 Aktualizacja ceny wariantu.
@@ -441,3 +443,8 @@ Lista zamówień przypisanych do kierowcy.
   }
 }
 ```
+
+---
+
+*API Spec v1.1 — 2026-08-13*
+*Zmiany: doprecyzowanie ręcznego zarządzania dostępnością produktów (brak modułu magazynowego).*

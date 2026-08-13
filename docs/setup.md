@@ -1,67 +1,79 @@
-# Instrukcja Instalacji
+# Setup — Instrukcja Instalacji
 
-## 1. Wymagania wstępne
+## 1. Wymagania
 
-### Lokalnie (Development)
-- Node.js 20+ (zalecany: via nvm)
-- pnpm 8+
-- Docker + Docker Compose
-- Git
-
-### Produkcja (Raspberry Pi 4)
-- Raspberry Pi 4 (4GB/8GB RAM)
-- SSD USB 3.0 128GB+
-- Zasilacz 5V/3A
-- Dostęp do routera (Ethernet preferowany)
-- Domena + dostęp do DNS (dla SSL)
+- **Node.js** 20+ (LTS)
+- **pnpm** 8+ (zalecane) lub npm/yarn
+- **Docker** + Docker Compose
+- **Git**
 
 ---
 
-## 2. Setup lokalny (Development)
-
-### Krok 1: Klonowanie repozytorium
+## 2. Klonowanie repozytorium
 
 ```bash
 git clone https://github.com/gamerpolska123-collab/WebowoROS
 cd restaurant-order-system
 ```
 
-### Krok 2: Instalacja zależności
+---
+
+## 3. Instalacja zależności
 
 ```bash
-# Instalacja pnpm (jeśli nie masz)
-npm install -g pnpm
-
-# Instalacja wszystkich pakietów (monorepo)
 pnpm install
 ```
 
-### Krok 3: Konfiguracja środowiska
+---
+
+## 4. Konfiguracja środowiska
+
+### 4.1 Plik .env
 
 ```bash
-# Skopiuj pliki env
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
-cp apps/dashboard/.env.example apps/dashboard/.env.local
-
-# Edytuj .env files z własnymi wartościami
-# Wymagane minimum:
-# - DATABASE_URL
-# - JWT_SECRET (generuj: openssl rand -base64 32)
-# - STRIPE_SECRET_KEY (lub PAYU dla testów)
+cp .env.example .env
 ```
 
-### Krok 4: Uruchomienie infrastruktury (baza, redis)
+Uzupełnij:
+```env
+# Baza danych
+DATABASE_URL=postgresql://ros_user:ros_password@localhost:5432/restaurant_db
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# JWT
+JWT_SECRET=your-super-secret-key-min-32-chars
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_IN=7d
+
+# Stripe (test)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# PayU (test)
+PAYU_CLIENT_ID=...
+PAYU_CLIENT_SECRET=...
+
+# Drukarki
+PRINTER_TYPE=escpos
+PRINTER_INTERFACE=usb
+
+# Aplikacja
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_WS_URL=ws://localhost:4001
+```
+
+### 4.2 Baza danych (Docker)
 
 ```bash
-cd infra/docker
-docker-compose up -d postgres redis
-
-# Sprawdzenie statusu
-docker-compose ps
+docker-compose -f infra/docker/docker-compose.yml up -d postgres redis
 ```
 
-### Krok 5: Migracje i seedery
+---
+
+## 5. Migracje i seedery
 
 ```bash
 cd apps/api
@@ -69,222 +81,73 @@ pnpm prisma migrate dev
 pnpm prisma db seed
 ```
 
-### Krok 6: Uruchomienie aplikacji
+---
+
+## 6. Uruchomienie (development)
 
 ```bash
-# Z root projektu (Turborepo uruchomi wszystko)
+# W root projektu
 pnpm dev
-
-# Lub osobno w terminalach:
-# Terminal 1: cd apps/api && pnpm start:dev
-# Terminal 2: cd apps/web && pnpm dev
-# Terminal 3: cd apps/dashboard && pnpm dev
 ```
 
-### Krok 7: Dostęp do aplikacji
-
-| Aplikacja | URL | Uwagi |
-|-----------|-----|-------|
-| Strona klienta | http://localhost:3000 | |
-| Dashboard | http://localhost:3001 | Login: admin@example.com / admin123 |
-| API Docs | http://localhost:4000/api | Swagger UI |
-| WebSocket | ws://localhost:4001 | Socket.io test |
-| PostgreSQL | localhost:5432 | DBeaver/pgAdmin |
-| Redis | localhost:6379 | Redis Insight |
+To uruchomi wszystkie aplikacje równolegle (Turborepo):
+- Web: http://localhost:3000
+- Dashboard: http://localhost:3001
+- API: http://localhost:4000
+- WebSocket: http://localhost:4001
 
 ---
 
-## 3. Setup produkcyjny (Raspberry Pi 4)
-
-### Krok 1: Przygotowanie Raspberry Pi
-
-Zobacz szczegóły w [`hardware.md`](./hardware.md). Skrót:
+## 7. Uruchomienie pojedynczych aplikacji
 
 ```bash
-# Na Raspberry Pi (po instalacji OS i Docker)
-mkdir -p ~/ros-project
-cd ~/ros-project
-```
+# Tylko API
+pnpm --filter api dev
 
-### Krok 2: Przygotowanie plików konfiguracyjnych
+# Tylko web
+pnpm --filter web dev
 
-```bash
-# Stwórz strukturę katalogów
-mkdir -p nginx/ssl nginx/www data/postgres data/redis backups
-
-# Skopiuj pliki z repozytorium
-git clone https://github.com/gamerpolska123-collab/WebowoROS src
-cp src/infra/docker/docker-compose.prod.yml ./docker-compose.yml
-cp src/infra/nginx/nginx.conf ./nginx/
-```
-
-### Krok 3: Konfiguracja .env
-
-```bash
-# .env (chmod 600!)
-cat > .env <<EOF
-# Baza danych
-DB_USER=ros_prod_user
-DB_PASSWORD=$(openssl rand -base64 24)
-DB_NAME=restaurant_prod
-
-# JWT
-JWT_SECRET=$(openssl rand -base64 32)
-
-# Płatności
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# PayU (alternatywa)
-PAYU_CLIENT_ID=...
-PAYU_CLIENT_SECRET=...
-
-# Domena
-DOMAIN=twojadomena.pl
-EOF
-
-chmod 600 .env
-```
-
-### Krok 4: SSL (Let's Encrypt)
-
-```bash
-# Instalacja certbot
-docker run -it --rm   -v $(pwd)/nginx/www:/var/www/certbot   -v $(pwd)/nginx/ssl:/etc/letsencrypt   certbot/certbot certonly   --webroot -w /var/www/certbot   -d twojadomena.pl -d www.twojadomena.pl
-
-# Auto-renewal (cron)
-echo "0 3 * * * docker run --rm -v $(pwd)/nginx/www:/var/www/certbot -v $(pwd)/nginx/ssl:/etc/letsencrypt certbot/certbot renew --quiet" | crontab -
-```
-
-### Krok 5: Pierwsze uruchomienie
-
-```bash
-# Pobranie obrazów
-docker-compose pull
-
-# Uruchomienie
-docker-compose up -d
-
-# Sprawdzenie logów
-docker-compose logs -f api
-
-# Migracja bazy (pierwszy raz)
-docker-compose exec api npx prisma migrate deploy
-
-# Seed danych (opcjonalnie)
-docker-compose exec api npx prisma db seed
-```
-
-### Krok 6: Weryfikacja
-
-```bash
-# Status kontenerów
-docker-compose ps
-
-# Test API
-curl https://twojadomena.pl/api/health
-
-# Test strony
-curl -I https://twojadomena.pl
+# Tylko dashboard
+pnpm --filter dashboard dev
 ```
 
 ---
 
-## 4. Aktualizacje (Deployment)
-
-### Automatyczny deployment (GitHub Actions)
-
-Po pushu do brancha `main`:
-1. GitHub Actions buduje obrazy i pushuje do GitHub Container Registry
-2. Watchtower na Raspberry Pi co godzinę sprawdza nowe wersje
-3. Automatyczny restart kontenerów z nowym obrazem
-
-### Ręczny deployment
+## 8. Testy
 
 ```bash
-cd ~/ros-project
+# Wszystkie testy
+pnpm test
 
-# Pobranie najnowszych obrazów
-docker-compose pull
+# Tylko API
+pnpm --filter api test
 
-# Zatrzymanie i uruchomienie (zero-downtime dla Nginx)
-docker-compose up -d
+# Tylko web
+pnpm --filter web test
 
-# Sprawdzenie
-docker-compose ps
-docker-compose logs -f --tail=100
-```
-
-### Rollback
-
-```bash
-# Jeśli nowa wersja ma błędy
-docker-compose down
-
-# Użycie poprzedniego taga
-export TAG=previous-stable
-docker-compose pull
-docker-compose up -d
+# E2E (Playwright)
+cd apps/web && pnpm test:e2e
 ```
 
 ---
 
-## 5. Troubleshooting
+## 9. Lint i formatowanie
 
-### Problem: Strona nie ładuje się
 ```bash
-# Sprawdź Nginx
-docker-compose logs nginx
-
-# Sprawdź czy web działa
-docker-compose exec web wget -qO- http://localhost:3000
-
-# Sprawdź firewall
-sudo ufw status
-```
-
-### Problem: Błąd połączenia z bazą
-```bash
-# Sprawdź czy postgres działa
-docker-compose exec postgres pg_isready -U ros_prod_user
-
-# Sprawdź logi
-docker-compose logs postgres
-
-# Restart
-docker-compose restart postgres
-```
-
-### Problem: Drukarka nie drukuje
-```bash
-# Sprawdź czy drukarka jest widoczna
-ls -la /dev/usb/lp*
-
-# Sprawdź logi printer-service
-docker-compose logs printer-service
-
-# Restart serwisu
-docker-compose restart printer-service
-```
-
-### Problem: Wysokie zużycie RAM
-```bash
-# Sprawdź
-docker stats
-
-# Ograniczenia są w docker-compose.prod.yml
-# Jeśli potrzeba więcej RAM - przejdź na Raspberry Pi 8GB
+pnpm lint
+pnpm format
 ```
 
 ---
 
-## 6. Użytkownicy testowi (po seedzie)
+## 10. Produkcja (lokalny build)
 
-| Rola | Email | Hasło |
-|------|-------|-------|
-| Admin | admin@example.com | Admin123! |
-| Kuchnia | kitchen@example.com | Kitchen123! |
-| Kierowca | driver@example.com | Driver123! |
-| Klient | customer@example.com | Customer123! |
+```bash
+pnpm build
+```
 
-> **WAŻNE**: Zmień hasła przed uruchomieniem produkcyjnym!
+Sprawdź czy buildy nie zawierają błędów.
+
+---
+
+*Setup v1.0 — 2026-08-12*

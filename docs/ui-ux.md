@@ -8,13 +8,13 @@
 
 ### Paleta kolorów
 ```
-Primary:    #E63946  (czerwień - apetyt, pilność, CTA)
-Secondary:  #F4A261  (pomarańcz - ciepło, przyjemność)
-Accent:     #2A9D8F  (zieleń - sukces, potwierdzenie)
-Dark:       #1D3557  (granat - elegancja, czytelność)
-Light:      #F1FAEE  (krem - tło, przestrzeń)
-Gold:       #D4AF37  (premium, nagrody, gamifikacja)
-Danger:     #D62828  (błąd, anulowanie)
+Primary: #E63946 (czerwień - apetyt, pilność, CTA)
+Secondary: #F4A261 (pomarańcz - ciepło, przyjemność)
+Accent: #2A9D8F (zieleń - sukces, potwierdzenie)
+Dark: #1D3557 (granat - elegancja, czytelność)
+Light: #F1FAEE (krem - tło, przestrzeń)
+Gold: #D4AF37 (premium, nagrody, gamifikacja)
+Danger: #D62828 (błąd, anulowanie)
 ```
 
 ### Typografia
@@ -31,11 +31,11 @@ Zamiast nudnej ikony koszyka z liczbą — użytkownik widzi **torbę dostawczą
 
 ### Stany torby
 ```
-[PUSTA]     → Płaska, zamknięta torba (subtelna, nie nachalna)
-[1-2 item]  → Torba lekko napompowana, uchwyty unoszą się
-[3-5 item]  → Torba wyraźnie wypełniona, lekko się ugina
-[6+ item]   → Torba maksymalnie wypełniona, uchwyty napięte, 
-              pojawia się badge "+X" z animacją bounce
+[PUSTA] → Płaska, zamknięta torba (subtelna, nie nachalna)
+[1-2 item] → Torba lekko napompowana, uchwyty unoszą się
+[3-5 item] → Torba wyraźnie wypełniona, lekko się ugina
+[6+ item] → Torba maksymalnie wypełniona, uchwyty napięte,
+  pojawia się badge "+X" z animacją bounce
 ```
 
 ### Animacja "Dodaj do torby" (Fly-to-Bag)
@@ -51,10 +51,10 @@ Gdy użytkownik klika "Dodaj":
 ### Sticky Bottom Bar (Mobile)
 ```
 ┌─────────────────────────────────────────┐
-│  🍕 Twoja torba          3 item  87 zł  │
-│  [Zobacz zamówienie →]                  │
+│ 🍕 Twoja torba 3 item 87 zł │
+│ [Zobacz zamówienie →] │
 └─────────────────────────────────────────┘
-         ↑ Torba z lewej, cena z prawej
+ ↑ Torba z lewej, cena z prawej
 ```
 
 ### Ekran torby (rozwinięty)
@@ -73,17 +73,17 @@ Gdy klient dodaje pizzę — zamiast zamykać modal od razu, pojawia się **"Dob
 
 ```
 ┌─────────────────────────────────────────┐
-│  🍕 Pizza Margherita dodana do torby!   │
-│                                         │
-│  Klienci często dokupują:               │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
-│  │ 🥤 Cola │ │ 🧄 Sos  │ │ 🍰 Tira │   │
-│  │  1L     │ │czosnkowy│ │ -misu   │   │
-│  │ 5 zł    │ │ 3 zł    │ │ 12 zł   │   │
-│  │ [+Dodaj]│ │ [+Dodaj]│ │ [+Dodaj]│   │
-│  └─────────┘ └─────────┘ └─────────┘   │
-│                                         │
-│  [Nie, dzięki → Przejdź do torby]      │
+│ 🍕 Pizza Margherita dodana do torby! │
+│ │
+│ Klienci często dokupują: │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ │
+│ │ 🥤 Cola │ │ 🧄 Sos │ │ 🍰 Tira │ │
+│ │ 1L │ │czosnkowy│ │ -misu │ │
+│ │ 5 zł │ │ 3 zł │ │ 12 zł │ │
+│ │ [+Dodaj]│ │ [+Dodaj]│ │ [+Dodaj]│ │
+│ └─────────┘ └─────────┘ └─────────┘ │
+│ │
+│ [Nie, dzięki → Przejdź do torby] │
 └─────────────────────────────────────────┘
 ```
 
@@ -98,10 +98,10 @@ Zamiast suchego paska — **termometr/pasek na torbie dostawczej**:
 
 ```
 Twoja torba: 45 zł
-🍕━━━━━━━━━━━━━━━🔥━━━━━━━━  Darmowa dostawa od 60 zł!
-                 ↑
-         "Jeszcze 15 zł!"
-         "Dodaj napój 1L za 5 zł i masz darmową dostawę!"
+🍕━━━━━━━━━━━━━━━🔥━━━━━━━━ Darmowa dostawa od 60 zł!
+ ↑
+ "Jeszcze 15 zł!"
+ "Dodaj napój 1L za 5 zł i masz darmową dostawę!"
 ```
 
 **Animacja**: Gdy klient dodaje produkt, płomień "przesuwa się" w prawo. Po osiągnięciu progu:
@@ -119,20 +119,20 @@ Zamiast listy zestawów — **interaktywny kreator**:
 
 ```
 ┌─────────────────────────────────────────┐
-│  🎁 STWÓRZ SWÓJ ZESTAW                  │
-│     Oszczędzasz do 20%!                 │
-│                                         │
-│  [1] Wybierz pizzę (2 szt.)             │
-│     [Margherita ✓] [Capriciosa ○]      │
-│                                         │
-│  [2] Wybierz napój (1 szt.)             │
-│     [Cola 1L ✓] [Sprite ○] [Woda ○]    │
-│                                         │
-│  [3] Wybierz dodatek (1 szt.)           │
-│     [Sos czosnkowy ✓] [Deser ○]        │
-│                                         │
-│  Razem: 67 zł  ~~(Osobno: 84 zł)~~     │
-│  [Dodaj zestaw do torby]                │
+│ 🎁 STWÓRZ SWÓJ ZESTAW │
+│ Oszczędzasz do 20%! │
+│ │
+│ [1] Wybierz pizzę (2 szt.) │
+│ [Margherita ✓] [Capriciosa ○] │
+│ │
+│ [2] Wybierz napój (1 szt.) │
+│ [Cola 1L ✓] [Sprite ○] [Woda ○] │
+│ │
+│ [3] Wybierz dodatek (1 szt.) │
+│ [Sos czosnkowy ✓] [Deser ○] │
+│ │
+│ Razem: 67 zł ~~(Osobno: 84 zł)~~ │
+│ [Dodaj zestaw do torby] │
 └─────────────────────────────────────────┘
 ```
 
@@ -147,14 +147,14 @@ Na ekranie podsumowania, nad przyciskiem "Zamów" — **pasek z impulsowymi doda
 
 ```
 ┌─────────────────────────────────────────┐
-│  💡 Ostatnia szansa!                    │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │
-│  │🧄Sos │ │🌶️Oliw│ │🥤Cola│ │🍰Deser│   │
-│  │+3zł  │ │+2zł  │ │+5zł  │ │+8zł  │   │
-│  └──────┘ └──────┘ └──────┘ └──────┘   │
-│         ← przewijane poziomo →          │
+│ 💡 Ostatnia szansa! │
+│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ │
+│ │🧄Sos │ │🌶️Oliw│ │🥤Cola│ │🍰Deser│ │
+│ │+3zł │ │+2zł │ │+5zł │ │+8zł │ │
+│ └──────┘ └──────┘ └──────┘ └──────┘ │
+│ ← przewijane poziomo → │
 ├─────────────────────────────────────────┤
-│  Razem: 89 zł   [Zamów i zapłać →]     │
+│ Razem: 89 zł [Zamów i zapłać →] │
 └─────────────────────────────────────────┘
 ```
 
@@ -169,21 +169,21 @@ Gdy klient wybiera pizzę — przed dodaniem do torby pojawia się **ekran dodat
 
 ```
 ┌─────────────────────────────────────────┐
-│  🍕 Twoja Margherita                    │
-│                                         │
-│     [PIZZA GRAFIKA]                     │
-│        +🍄 +🧀 +🌶️                      │
-│     (dodatki pojawiają się na grafice)  │
-│                                         │
-│  Dodaj więcej smaku:                    │
-│  ┌────────┐ ┌────────┐ ┌────────┐      │
-│  │🍄Grzyby│ │🧀Extra │ │🌶️Jalape│      │
-│  │  +4 zł │ │ser +5zł│ │ño +3zł │      │
-│  │ [+][-] │ │ [+][-] │ │ [+][-] │      │
-│  └────────┘ └────────┘ └────────┘      │
-│                                         │
-│  Cena: 29 zł → 38 zł                    │
-│  [🍕 Dodaj do torby]                    │
+│ 🍕 Twoja Margherita │
+│ │
+│ [PIZZA GRAFIKA] │
+│ +🍄 +🧀 +🌶️ │
+│ (dodatki pojawiają się na grafice) │
+│ │
+│ Dodaj więcej smaku: │
+│ ┌────────┐ ┌────────┐ ┌────────┐ │
+│ │🍄Grzyby│ │🧀Extra │ │🌶️Jalape│ │
+│ │ +4 zł │ │ser +5zł│ │ño +3zł │ │
+│ │ [+][-] │ │ [+][-] │ │ [+][-] │ │
+│ └────────┘ └────────┘ └────────┘ │
+│ │
+│ Cena: 29 zł → 38 zł │
+│ [🍕 Dodaj do torby] │
 └─────────────────────────────────────────┘
 ```
 
@@ -198,9 +198,9 @@ Przy produktach pojedynczych — sugestia większego wariantu:
 
 ```
 Margherita 30 cm — 29 zł
-Margherita 40 cm — 39 zł  ← "Najpopularniejsza!"
-Margherita 50 cm — 49 zł  ← "Dla 2-3 osób, tylko +20 zł!"
-                           ↑ badge zachęcający
+Margherita 40 cm — 39 zł ← "Najpopularniejsza!"
+Margherita 50 cm — 49 zł ← "Dla 2-3 osób, tylko +20 zł!"
+ ↑ badge zachęcający
 ```
 
 ### 3.7 "Dodaj za 1 zł" (Loss Leader)
@@ -212,9 +212,9 @@ Konfigurowalna promocja z dashboardu:
 Wyświetlane jako **flash banner** nad torem:
 ```
 ┌─────────────────────────────────────────┐
-│  ⚡ PROMOCJA: Dodaj sos za 1 zł!        │
-│     (przy tym zamówieniu)               │
-│     [Tak, dodaj!]  [Nie, dzięki]        │
+│ ⚡ PROMOCJA: Dodaj sos za 1 zł! │
+│ (przy tym zamówieniu) │
+│ [Tak, dodaj!] [Nie, dzięki] │
 └─────────────────────────────────────────┘
 ```
 
@@ -241,9 +241,9 @@ Złota pieczątka z obracającym się tekstem "SZEF POLECA" na wybranych produkt
 ### 4.5 Countdown na promocje
 ```
 ┌─────────────────────────────────────────┐
-│  ⏰ PROMOCJA KOŃCZY SIĘ ZA:             │
-│     02 : 14 : 33                        │
-│     (animacja ticking clock)            │
+│ ⏰ PROMOCJA KOŃCZY SIĘ ZA: │
+│ 02 : 14 : 33 │
+│ (animacja ticking clock) │
 └─────────────────────────────────────────┘
 ```
 Konfigurowalne z dashboardu: data rozpoczęcia, zakończenia, produkty objęte.
@@ -252,8 +252,8 @@ Konfigurowalne z dashboardu: data rozpoczęcia, zakończenia, produkty objęte.
 Zamiast suchego statusu — **ilustrowany timeline**:
 ```
 [👨‍🍳]──────[🔥]──────[🛵]──────[🏠]
-  ↑         ↑         ↑         ↑
-Przyjęto  W piecu  W drodze  U Ciebie!
+ ↑ ↑ ↑ ↑
+Przyjęto W piecu W drodze U Ciebie!
 ```
 Z animacjami: dymek z pizzy, poruszający się skuter, dzwonek do drzwi.
 
@@ -274,74 +274,75 @@ Właściciel restauracji ma pełną kontrolę nad wszystkimi "bajerami" bez inge
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ⚙️ USTAWIENIA KONWERSJI I UPSELLU                          │
+│ ⚙️ USTAWIENIA KONWERSJI I UPSELLU │
 ├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  📦 SMART CROSS-SELL                                        │
-│  [✓] Włącz rekomendacje po dodaniu produktu               │
-│  Ilość rekomendacji: [3]                                    │
-│  Typ: (•) Automatyczne  ( ) Ręczne przypisanie            │
-│                                                             │
-│  🚚 DARMOWA DOSTAWA                                         │
-│  [✓] Włącz prog darmowej dostawy                          │
-│  Próg: [60] zł                                              │
-│  Produkty podpowiadane: [Cola 1L, Sos czosnkowy]          │
-│  Animacja: (•) Termometr  ( ) Pasek postępu               │
-│                                                             │
-│  🎁 ZESTAWY (BUNDLES)                                       │
-│  [Dodaj nowy zestaw]                                        │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Zestaw "Rodzinny" | Rabat: 15% | Status: ✅ Aktywny │   │
-│  │ 2x Pizza + 1x Napój 1L + 1x Sos                     │   │
-│  │ [Edytuj] [Dezaktywuj] [Statystyki]                  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ⚡ PROMOCJE CZASOWE                                        │
-│  [Dodaj promocję]                                           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ "Sos za 1 zł" | Do: 2024-08-31 | Status: ✅ Aktywna │   │
-│  │ Warunek: Zamówienie > 40 zł | Produkt: Sos czosnkowy│   │
-│  │ Cena promocyjna: 1 zł                                 │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  🏷️ BADGE'Y I ETYKIETY                                      │
-│  [✓] "Bestseller" (automatycznie, top 5 sprzedaży)       │
-│  [✓] "Nowość" (produkty dodane < 30 dni temu)            │
-│  [✓] "Ostatnie sztuki" (przy niskim stanie magazynowym)  │
-│  [✓] "Szef poleca" (ręczne przypisanie)                  │
-│                                                             │
-│  🔔 POWIADOMIENIA TOAST                                     │
-│  [✓] "Ktoś w okolicy zamówił..."                          │
-│  Częstotliwość: [co 30] sekund                            │
-│  Treść szablonu: "Ktoś z {district} zamówił {product}"    │
-│                                                             │
+│ │
+│ 📦 SMART CROSS-SELL │
+│ [✓] Włącz rekomendacje po dodaniu produktu │
+│ Ilość rekomendacji: [3] │
+│ Typ: (•) Automatyczne ( ) Ręczne przypisanie │
+│ │
+│ 🚚 DARMOWA DOSTAWA │
+│ [✓] Włącz próg darmowej dostawy │
+│ Próg: [60] zł │
+│ Produkty podpowiadane: [Cola 1L, Sos czosnkowy] │
+│ Animacja: (•) Termometr ( ) Pasek postępu │
+│ │
+│ 🎁 ZESTAWY (BUNDLES) │
+│ [Dodaj nowy zestaw] │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Zestaw "Rodzinny" | Rabat: 15% | Status: ✅ Aktywny │ │
+│ │ 2x Pizza + 1x Napój 1L + 1x Sos │ │
+│ │ [Edytuj] [Dezaktywuj] [Statystyki] │ │
+│ └─────────────────────────────────────────────────────┘ │
+│ │
+│ ⚡ PROMOCJE CZASOWE │
+│ [Dodaj promocję] │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ "Sos za 1 zł" | Do: 2024-08-31 | Status: ✅ Aktywna │ │
+│ │ Warunek: Zamówienie > 40 zł | Produkt: Sos czosnkowy│ │
+│ │ Cena promocyjna: 1 zł │ │
+│ └─────────────────────────────────────────────────────┘ │
+│ │
+│ 🏷️ BADGE'Y I ETYKIETY │
+│ [✓] "Bestseller" (automatycznie, top 5 sprzedaży) │
+│ [✓] "Nowość" (produkty dodane < 30 dni temu) │
+│ [✓] "Szef poleca" (ręczne przypisanie) │
+│ │
+│ 🔔 POWIADOMIENIA TOAST │
+│ [✓] "Ktoś w okolicy zamówił..." │
+│ Częstotliwość: [co 30] sekund │
+│ Treść szablonu: "Ktoś z {district} zamówił {product}" │
+│ │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> **Uwaga**: Badge "Ostatnie sztuki" nie jest dostępny — system **nie posiada modułu magazynowego**. Braki składników obsługuje personel ręcznie przez oznaczenie produktu jako niedostępny.
 
 ### 5.2 Panel "Wygląd i Animacje"
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🎨 WYGLĄD STRONY                                           │
+│ 🎨 WYGLĄD STRONY │
 ├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Ikona koszyka: (•) Torba na pizzę  ( ) Klasyczny koszyk  │
-│  Animacja dodawania: (•) Fly-to-bag  ( ) Fade  ( ) Brak   │
-│  Motyw: (•) Jasny  ( ) Ciemny  ( ) Auto (systemowy)       │
-│                                                             │
-│  🍕 KONFIGURATOR PIZZY                                      │
-│  [✓] Włącz interaktywny konfigurator                      │
-│  [✓] Pokazuj dodatki na grafice pizzy                     │
-│                                                             │
-│  🎵 DŹWIĘKI                                                 │
-│  [✓] Dźwięk dodawania do torby                            │
-│  [ ] Dźwięk nowego zamówienia (dla KDS)                   │
-│                                                             │
-│  🎉 EFEKTY SPECJALNE                                        │
-│  [✓] Confetti przy darmowej dostawie                      │
-│  [✓] Shake torby przy błędzie minimum                     │
-│  [✓] Puls bestsellerów                                    │
-│                                                             │
+│ │
+│ Ikona koszyka: (•) Torba na pizzę ( ) Klasyczny koszyk │
+│ Animacja dodawania: (•) Fly-to-bag ( ) Fade ( ) Brak │
+│ Motyw: (•) Jasny ( ) Ciemny ( ) Auto (systemowy) │
+│ │
+│ 🍕 KONFIGURATOR PIZZY │
+│ [✓] Włącz interaktywny konfigurator │
+│ [✓] Pokazuj dodatki na grafice pizzy │
+│ │
+│ 🎵 DŹWIĘKI │
+│ [✓] Dźwięk dodawania do torby │
+│ [ ] Dźwięk nowego zamówienia (dla KDS) │
+│ │
+│ 🎉 EFEKTY SPECJALNE │
+│ [✓] Confetti przy darmowej dostawie │
+│ [✓] Shake torby przy błędzie minimum │
+│ [✓] Puls bestsellerów │
+│ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -349,40 +350,40 @@ Właściciel restauracji ma pełną kontrolę nad wszystkimi "bajerami" bez inge
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🍕 ZARZĄDZANIE PRODUKTAMI                                  │
+│ 🍕 ZARZĄDZANIE PRODUKTAMI │
 ├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  [Dodaj produkt]  [Import CSV]  [Eksport CSV]               │
-│                                                             │
-│  Filtruj: [Wszystkie ▼]  [Dostępne ▼]  Szukaj: [______]   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ 🍕 Margherita                              [✏️] [🗑️]│   │
-│  │ Kategoria: Pizze | Cena: 29 zł | Dostępna: ✅      │   │
-│  │                                                      │   │
-│  │ Warianty:                                            │   │
-│  │   Mała 30cm: 29 zł  [Edytuj]                       │   │
-│  │   Średnia 40cm: 39 zł [Edytuj]                     │   │
-│  │   Duża 50cm: 49 zł [Edytuj]                        │   │
-│  │                                                      │   │
-│  │ Dodatki:                                             │   │
-│  │   Extra ser: +5 zł | Pieczarki: +3 zł              │   │
-│  │                                                      │   │
-│  │ Upsell:                                              │   │
-│  │   Rekomendowane: [Cola 1L], [Sos czosnkowy]        │   │
-│  │   Pakiet "Więcej smaku": 3 dodatki za 10 zł        │   │
-│  │                                                      │   │
-│  │ Badge: [✓] Bestseller  [ ] Nowość  [✓] Szef poleca │   │
-│  │                                                      │   │
-│  │ 📸 Zdjęcie: [podgląd] [Zmień]                      │   │
-│  │                                                      │   │
-│  │ [💾 Zapisz zmiany] [Podgląd na stronie]            │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ⚡ ZMIANA CENY (szybka edycja inline):                    │
-│  Kliknij cenę → wpisz nową → Enter → Broadcast WS         │
-│  [Historia zmian cen] — audyt: kto, kiedy, stara→nowa     │
-│                                                             │
+│ │
+│ [Dodaj produkt] [Import CSV] [Eksport CSV] │
+│ │
+│ Filtruj: [Wszystkie ▼] [Dostępne ▼] Szukaj: [______] │
+│ │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 🍕 Margherita [✏️] [🗑️]│ │
+│ │ Kategoria: Pizze | Cena: 29 zł | Dostępna: ✅ │ │
+│ │ │ │
+│ │ Warianty: │ │
+│ │ Mała 30cm: 29 zł [Edytuj] │ │
+│ │ Średnia 40cm: 39 zł [Edytuj] │ │
+│ │ Duża 50cm: 49 zł [Edytuj] │ │
+│ │ │ │
+│ │ Dodatki: │ │
+│ │ Extra ser: +5 zł | Pieczarki: +3 zł │ │
+│ │ │ │
+│ │ Upsell: │ │
+│ │ Rekomendowane: [Cola 1L], [Sos czosnkowy] │ │
+│ │ Pakiet "Więcej smaku": 3 dodatki za 10 zł │ │
+│ │ │ │
+│ │ Badge: [✓] Bestseller [ ] Nowość [✓] Szef poleca │ │
+│ │ │ │
+│ │ 📸 Zdjęcie: [podgląd] [Zmień] │ │
+│ │ │ │
+│ │ [💾 Zapisz zmiany] [Podgląd na stronie] │ │
+│ └─────────────────────────────────────────────────────┘ │
+│ │
+│ ⚡ ZMIANA CENY (szybka edycja inline): │
+│ Kliknij cenę → wpisz nową → Enter → Broadcast WS │
+│ [Historia zmian cen] — audyt: kto, kiedy, stara→nowa │
+│ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -390,57 +391,57 @@ Właściciel restauracji ma pełną kontrolę nad wszystkimi "bajerami" bez inge
 - **Inline editing** — kliknij cenę, wpisz nową, Enter. Zmiana natychmiast widoczna na stronie (WebSocket).
 - **Bulk edit** — zaznacz wiele produktów, zmień cenę o % lub kwotę.
 - **Historia cen** — wykres zmian ceny w czasie (dla analizy).
-- **Dostępność** — toggle "Dostępne/Niedostępne" z komunikatem na stronie: "Tymczasowo niedostępne".
+- **Dostępność** — toggle "Dostępne/Niedostępne" z komunikatem na stronie: "Tymczasowo niedostępne". Personel ręcznie oznacza braki składników.
 - **Kategorie** — drag & drop do zmiany kolejności.
 
 ---
 
-## 6. STRUKTURA STRONY GŁÓWNEJ (z torbą)
+## 6. STRUKTURA STRONY GŁÓWNEJ (z torbą)
 
 ```
 ┌─────────────────────────────────────────┐
-│  [LOGO]        [MENU]  [🍕 Torba (2)]  │  <- Sticky header
-│                              ↑ Torba z  │
-│                                licznikiem│
+│ [LOGO] [Menu] [🍕 Torba (2)] │ <- Sticky header
+│ ↑ Torba z │
+│ licznikiem│
 ├─────────────────────────────────────────┤
-│  🎉 WEEKENDOWA PROMOCJA!                │  <- Hero banner
-│     2 pizze + napój = 59 zł!            │
-│     [Zamów teraz]                       │
+│ 🎉 WEEKENDOWA PROMOCJA! │ <- Hero banner
+│ 2 pizze + napój = 59 zł! │
+│ [Zamów teraz] │
 ├─────────────────────────────────────────┤
-│  📍 Wpisz adres → Sprawdź dostawę       │
+│ 📍 Wpisz adres → Sprawdź dostawę │
 ├─────────────────────────────────────────┤
-│  🔥 SZEF POLECA (pulsujące badge)       │
-│  [Pizza 1] [Pizza 2] [Pizza 3]          │
-│  (zdjęcia z parallax, hover = zoom)     │
+│ 🔥 SZEF POLECA (pulsujące badge) │
+│ [Pizza 1] [Pizza 2] [Pizza 3] │
+│ (zdjęcia z parallax, hover = zoom) │
 ├─────────────────────────────────────────┤
-│  🍕 PIZZE    🍝 MAKARONY    🥗 SAŁATKI  │  <- Sticky tabs
-│  (przyklejone do góry po scrollu)       │
+│ 🍕 PIZZE 🍝 MAKARONY 🥗 SAŁATKI │ <- Sticky tabs
+│ (przyklejone do góry po scrollu) │
 ├─────────────────────────────────────────┤
-│  ┌─────────────────────────────────┐    │
-│  │ 🍕 Margherita                   │    │
-│  │ [ZDJĘCIE]                       │    │
-│  │ "Klasyczna, prosta, pyszna"     │    │
-│  │ ⭐ 4.8 (120 opinii)             │    │
-│  │ 🏆 BESTSELLER (złota pieczątka) │    │
-│  │                                 │    │
-│  │ Mała 30cm    29 zł              │    │
-│  │ Średnia 40cm 39 zł  ← Popularna!│    │
-│  │ Duża 50cm    49 zł              │    │
-│  │                                 │    │
-│  │ [🍕 Konfiguruj i dodaj]         │    │
-│  │     ↑ Otwiera modal z dodatkami │    │
-│  └─────────────────────────────────┘    │
+│ ┌─────────────────────────────────┐ │
+│ │ 🍕 Margherita │ │
+│ │ [ZDJĘCIE] │ │
+│ │ "Klasyczna, prosta, pyszna" │ │
+│ │ ⭐ 4.8 (120 opinii) │ │
+│ │ 🏆 BESTSELLER (złota pieczątka) │ │
+│ │ │ │
+│ │ Mała 30cm 29 zł │ │
+│ │ Średnia 40cm 39 zł ← Popularna!│ │
+│ │ Duża 50cm 49 zł │ │
+│ │ │ │
+│ │ [🍕 Konfiguruj i dodaj] │ │
+│ │ ↑ Otwiera modal z dodatkami │ │
+│ └─────────────────────────────────┘ │
 ├─────────────────────────────────────────┤
-│  ⭐ Opinie (carousel ze zdjęciami)      │
+│ ⭐ Opinie (carousel ze zdjęciami) │
 ├─────────────────────────────────────────┤
-│  📱 Pobierz aplikację (PWA)             │
+│ 📱 Pobierz aplikację (PWA) │
 ├─────────────────────────────────────────┤
-│  [STOPKA]                               │
+│ [STOPKA] │
 └─────────────────────────────────────────┘
-│  ┌─────────────────────────────────────┐│
-│  │ 🍕 Twoja torba          2 item 78zł ││ <- Sticky bottom
-│  │ [Zobacz zamówienie →]              ││
-│  └─────────────────────────────────────┘│
+│ ┌─────────────────────────────────────┐│
+│ │ 🍕 Twoja torba 2 item 78zł ││ <- Sticky bottom
+│ │ [Zobacz zamówienie →] ││
+│ └─────────────────────────────────────┘│
 └─────────────────────────────────────────┘
 ```
 
@@ -451,48 +452,48 @@ Właściciel restauracji ma pełną kontrolę nad wszystkimi "bajerami" bez inge
 ### Krok 1: Torba (rozwinięta)
 ```
 ┌─────────────────────────────────────────┐
-│  🍕 Twoja torba                         │
-│                                         │
-│  ┌─────────────────────────────────┐    │
-│  │ 🍕 Margherita 40cm              │    │
-│  │    + Extra ser, + Pieczarki     │    │
-│  │    39 zł + 8 zł = 47 zł         │    │
-│  │    [🗑️]                         │    │
-│  └─────────────────────────────────┘    │
-│  ┌─────────────────────────────────┐    │
-│  │ 🍕 Capriciosa 40cm              │    │
-│  │    39 zł                        │    │
-│  │    [🗑️]                         │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-│  💡 Dodaj coś jeszcze?                  │
-│  [🥤 Cola 1L +5zł] [🧄 Sos +3zł]       │
-│                                         │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
-│  Suma: 86 zł                            │
-│  Dostawa: 8 zł                          │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
-│  RAZEM: 94 zł                           │
-│                                         │
-│  🔥 Jeszcze 14 zł do darmowej dostawy!  │
-│  [Dodaj napój 1.5L za 9 zł]             │
-│                                         │
-│  [🛒 Przejdź do dostawy →]              │
+│ 🍕 Twoja torba │
+│ │
+│ ┌─────────────────────────────────┐ │
+│ │ 🍕 Margherita 40cm │ │
+│ │ + Extra ser, + Pieczarki │ │
+│ │ 39 zł + 8 zł = 47 zł │ │
+│ │ [🗑️] │ │
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ 🍕 Capriciosa 40cm │ │
+│ │ 39 zł │ │
+│ │ [🗑️] │ │
+│ └─────────────────────────────────┘ │
+│ │
+│ 💡 Dodaj coś jeszcze? │
+│ [🥤 Cola 1L +5zł] [🧄 Sos +3zł] │
+│ │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│ Suma: 86 zł │
+│ Dostawa: 8 zł │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│ RAZEM: 94 zł │
+│ │
+│ 🔥 Jeszcze 14 zł do darmowej dostawy! │
+│ [Dodaj napój 1.5L za 9 zł] │
+│ │
+│ [🛒 Przejdź do dostawy →] │
 └─────────────────────────────────────────┘
 ```
 
 ### Krok 2: Dane + Ostatnia szansa
 ```
 ┌─────────────────────────────────────────┐
-│  Dane dostawy...                        │
-│                                         │
-│  💡 OSTATNIA SZANSA!                    │
-│  ┌──────┐ ┌──────┐ ┌──────┐            │
-│  │🧄Sos │ │🌶️Oliw│ │🍰Deser│            │
-│  │+3zł  │ │+2zł  │ │+8zł  │            │
-│  └──────┘ └──────┘ └──────┘            │
-│                                         │
-│  [Zamów i zapłać 94 zł →]               │
+│ Dane dostawy... │
+│ │
+│ 💡 OSTATNIA SZANSA! │
+│ ┌──────┐ ┌──────┐ ┌──────┐ │
+│ │🧄Sos │ │🌶️Oliw│ │🍰Deser│ │
+│ │+3zł │ │+2zł │ │+8zł │ │
+│ └──────┘ └──────┘ └──────┘ │
+│ │
+│ [Zamów i zapłać 94 zł →] │
 └─────────────────────────────────────────┘
 ```
 
@@ -500,7 +501,7 @@ Właściciel restauracji ma pełną kontrolę nad wszystkimi "bajerami" bez inge
 
 ## 8. MOBILE-FIRST INTERAKCJE
 
-- **Swipe** w torbą: przesuń w prawo, aby szybko dodać ostatnio zamawiany produkt
+- **Swipe** w torbę: przesuń w prawo, aby szybko dodać ostatnio zamawiany produkt
 - **Long press** na produkcie: podgląd szczegółów bez wchodzenia w kartę
 - **Pull-to-refresh** menu: odświeżenie dostępności
 - **Haptic feedback** na każdym dodaniu do torby
@@ -512,7 +513,7 @@ Właściciel restauracji ma pełną kontrolę nad wszystkimi "bajerami" bez inge
 
 Właściciel może w dowolnej chwili:
 1. **Zmienić cenę** — inline, natychmiastowy broadcast na stronę
-2. **Wyłączyć produkt** — znika ze strony lub pokazuje "Chwilowo niedostępne"
+2. **Wyłączyć produkt** — znika ze strony lub pokazuje "Chwilowo niedostępne" (personel oznacza braki składników ręcznie)
 3. **Dodać dodatki** — do każdego produktu (cena, max ilość)
 4. **Przypisać upsell** — które produkty rekomendować
 5. **Ustawić promocje** — czasowe, warunkowe, procentowe
@@ -521,3 +522,8 @@ Właściciel może w dowolnej chwili:
 8. **Zarządzać wariantami** — rozmiary, ceny, dostępność
 
 Wszystkie zmiany są **natychmiastowe** (WebSocket) lub z opóźnieniem < 2 sekund.
+
+---
+
+*UI/UX v1.1 — 2026-08-13*  
+*Zmiany: usunięcie badge "Ostatnie sztuki" (brak modułu magazynowego), doprecyzowanie ręcznego oznaczania niedostępności.*

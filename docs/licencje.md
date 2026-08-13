@@ -74,7 +74,7 @@ Jeśli klient nie chce płacić za usługi zewnętrzne:
 
 ## 5. Podsumowanie
 
-✅ **Możesz legalnie odsprzedać ten system** bez płacenia osobom trzecim za licencje kodu.  
-✅ **Cały kod jest open-source i darmowy** do komercyjnego użycia.  
-✅ **Usługi zewnętrzne** (Stripe, PayU, Google Maps) to opcjonalne integracje — klient płaci za nie bezpośrednio, nie ty.  
+✅ **Możesz legalnie odsprzedać ten system** bez płacenia osobom trzecim za licencje kodu.
+✅ **Cały kod jest open-source i darmowy** do komercyjnego użycia.
+✅ **Usługi zewnętrzne** (Stripe, PayU, Google Maps) to opcjonalne integracje — klient płaci za nie bezpośrednio, nie ty.
 ✅ **System jest w 100% Twoją własnością** — możesz go sprzedać, zmodyfikować, rozszerzyć.

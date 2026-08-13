@@ -10,23 +10,23 @@ Cały system działa w kontenerach Docker. Lokalnie używamy `docker-compose.yml
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Docker Network: ros-net                   │
+│ Docker Network: ros-net                                     │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │    nginx    │  │     web     │  │  dashboard  │         │
-│  │   :80/443   │  │   :3000     │  │   :3001     │         │
-│  │  (reverse   │  │  (Next.js)  │  │  (Next.js)  │         │
-│  │   proxy)    │  │             │  │             │         │
-│  └──────┬──────┘  └─────────────┘  └─────────────┘         │
-│         │                                                   │
-│  ┌──────┴──────────────────────────────────────────────┐   │
-│  │                    api (NestJS) :4000                │   │
-│  └──────┬──────────────────────────────────────────────┘   │
-│         │                                                   │
-│  ┌──────┴──────┐  ┌─────────────┐  ┌─────────────────┐    │
-│  │  postgres   │  │    redis    │  │ printer-service │    │
-│  │   :5432     │  │   :6379     │  │    :5000        │    │
-│  └─────────────┘  └─────────────┘  └─────────────────┘    │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐            │
+│ │   nginx     │ │    web      │ │  dashboard  │            │
+│ │  :80/443    │ │   :3000     │ │   :3001     │            │
+│ │(reverse     │ │  (Next.js)  │ │  (Next.js)  │            │
+│ │  proxy)     │ │             │ │             │            │
+│ └──────┬──────┘ └─────────────┘ └─────────────┘            │
+│        │                                                    │
+│ ┌──────┴──────────────────────────────────────────────┐    │
+│ │              api (NestJS) :4000                      │    │
+│ └──────┬──────────────────────────────────────────────┘    │
+│        │                                                    │
+│ ┌──────┴──────┐ ┌─────────────┐ ┌─────────────────┐       │
+│ │  postgres   │ │    redis    │ │ printer-service │       │
+│ │   :5432     │ │   :6379     │ │     :5000       │       │
+│ └─────────────┘ └─────────────┘ └─────────────────┘       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -173,7 +173,6 @@ services:
       - ./backups:/backups
     networks:
       - ros-net
-    # Ograniczenia dla Raspberry Pi
     deploy:
       resources:
         limits:
@@ -269,7 +268,6 @@ services:
     networks:
       - ros-net
 
-  # Opcjonalnie: Watchtower do auto-update'ów
   watchtower:
     image: containrrr/watchtower
     restart: unless-stopped
@@ -292,7 +290,6 @@ networks:
 ### `Dockerfile.api` (NestJS)
 
 ```dockerfile
-# Multi-stage build dla optymalizacji
 FROM node:20-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm
@@ -358,33 +355,26 @@ CMD ["node", "src/index.js"]
 ## 5. Build multi-arch (AMD64 + ARM64 dla Raspberry Pi)
 
 ```bash
-# Rejestracja buildx (raz)
 docker buildx create --use --name ros-builder
 
-# Build i push wszystkich obrazów
 export REGISTRY=ghcr.io/org
 export TAG=latest
 
-docker buildx build   --platform linux/amd64,linux/arm64   -f infra/docker/Dockerfile.api   -t $REGISTRY/ros-api:$TAG   --push .
-
-docker buildx build   --platform linux/amd64,linux/arm64   -f infra/docker/Dockerfile.web   -t $REGISTRY/ros-web:$TAG   --push .
-
-docker buildx build   --platform linux/amd64,linux/arm64   -f infra/docker/Dockerfile.dashboard   -t $REGISTRY/ros-dashboard:$TAG   --push .
-
-docker buildx build   --platform linux/amd64,linux/arm64   -f infra/docker/Dockerfile.printer   -t $REGISTRY/ros-printer:$TAG   --push .
+docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.api -t $REGISTRY/ros-api:$TAG --push .
+docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.web -t $REGISTRY/ros-web:$TAG --push .
+docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.dashboard -t $REGISTRY/ros-dashboard:$TAG --push .
+docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.printer -t $REGISTRY/ros-printer:$TAG --push .
 ```
 
 ---
 
 ## 6. Zarządzanie sekretami
 
-W produkcji używamy pliku `.env` (nigdy w repo!) oraz Docker Secrets (opcjonalnie):
-
 ```bash
 # .env (na serwerze, chmod 600)
 DB_USER=ros_prod_user
-DB_PASSWORD=<strong-password>
-JWT_SECRET=<random-256-bit>
+DB_PASSWORD=
+JWT_SECRET=
 STRIPE_SECRET_KEY=sk_live_...
 PAYU_CLIENT_ID=...
 PAYU_CLIENT_SECRET=...
@@ -416,5 +406,9 @@ docker-compose -f infra/docker/docker-compose.prod.yml pull
 docker-compose -f infra/docker/docker-compose.prod.yml up -d
 
 # Przestrzeń dyskowa (Raspberry Pi)
-docker system prune -a --volumes  # Czyści nieużywane obrazy i wolumeny
+docker system prune -a --volumes
 ```
+
+---
+
+*Docker v1.0 — 2026-08-12*

@@ -1,5 +1,10 @@
 # Hardware & Raspberry Pi 4
 
+> **Ważne**: Restaurant Order System (ROS) **nie zastępuje kasy fiskalnej** restauracji.  
+> ROS drukuje wyłącznie **bilety wewnętrzne** (kuchenne i dla kierowców). Paragon fiskalny obsługuje osobna, certyfikowana kasa fiskalna poza systemem ROS.
+
+---
+
 ## 1. Specyfikacja sprzętowa
 
 ### Raspberry Pi 4 (rekomendowana konfiguracja)
@@ -24,7 +29,7 @@
 ### Krok 1: Przygotowanie SSD
 ```bash
 # Na komputerze z Linux/Mac
-# Pobierz Raspberry Pi Imager lub użyd dd
+# Pobierz Raspberry Pi Imager lub użyj dd
 
 # Pobierz Raspberry Pi OS Lite (64-bit, Debian Bookworm)
 # https://downloads.raspberrypi.org/raspios_lite_arm64/images/
@@ -42,45 +47,27 @@ Przed pierwszym uruchomieniem zamontuj partycję `bootfs` i utwórz pliki:
 touch /mnt/bootfs/ssh
 
 # Konfiguracja WiFi (opcjonalnie, jeśli nie używasz Ethernet)
-cat > /mnt/bootfs/wpa_supplicant.conf <<EOF
+cat > /mnt/bootfs/wpa_supplicant.conf <<'EOF'
 country=PL
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 update_config=1
 
 network={
-    ssid="NAZWA_SIECI"
-    psk="HASLO"
-    key_mgmt=WPA-PSK
+ ssid="TWOJA_SIEC_WIFI"
+ psk="TWOJE_HASLO_WIFI"
+ key_mgmt=WPA-PSK
 }
 EOF
 
-# Ustawienia użytkownika
-cat > /mnt/bootfs/userconf.txt <<EOF
-pi:$(echo 'TwojeHaslo' | openssl passwd -6 -stdin)
-EOF
+# Ustaw użytkownika (zamień hasło!)
+echo 'pi:$(openssl passwd -6 "TwojeSilneHaslo123!")' | sudo tee /mnt/bootfs/userconf.txt
+
+# Odmontuj
+sudo umount /mnt/bootfs
 ```
 
-### Krok 3: Pierwsze uruchomienie
-
-```bash
-# Połącz się przez SSH
-ssh pi@raspberrypi.local
-
-# Aktualizacja systemu
-sudo apt update && sudo apt full-upgrade -y
-
-# Instalacja Docker
- curl -fsSL https://get.docker.com -o get-docker.sh
- sudo sh get-docker.sh
- sudo usermod -aG docker pi
-
-# Instalacja Docker Compose
-sudo apt install -y docker-compose-plugin
-
-# Konfiguracja boot z SSD (jeśli używasz USB boot)
-sudo raspi-config
-# Advanced Options -> Boot Order -> USB
-```
+> 💡 **Włóż SSD do Raspberry Pi, podłącz Ethernet i zasilanie.**  
+> W BIOS (jeśli boot z SSD nie działa): `sudo raspi-config` → Boot Order → USB
 
 ---
 
@@ -103,17 +90,19 @@ static domain_name_servers=192.168.1.1 8.8.8.8
 
 ---
 
-## 4. Drukarki termiczne
+## 4. Drukarki termiczne w ROS
 
-### Obsługiwane modele
+> **ROS drukuje wyłącznie bilety wewnętrzne. Paragon fiskalny wystawia osobna kasa fiskalna restauracji.**
+
+### 4.1 Obsługiwane modele
 | Model | Interfejs | Biblioteka | Uwagi |
 |-------|-----------|------------|-------|
-| Epson TM-T20II | USB | node-escpos | Najpopularniejsza, niezawodna |
+| Epson TM-T20II | USB | node-escpos | Niezawodna, popularna |
 | Epson TM-T88V | USB/Ethernet | node-escpos | Szybsza, droższa |
 | Xprinter XP-58 | USB | node-escpos | Tania alternatywa |
 | Rongta RP58 | USB | node-escpos | Dobra jakość/cena |
 
-### Podłączenie USB do kontenera Docker
+### 4.2 Podłączenie USB do kontenera Docker
 
 ```yaml
 # W docker-compose.prod.yml
@@ -126,23 +115,17 @@ printer-service:
     - /dev/usb/lp0:/dev/usb/lp0
 ```
 
-### Konfiguracja CUPS (opcjonalnie, dla drukarek sieciowych)
+### 4.3 Szablony wydruków w ROS
 
-```bash
-# Instalacja CUPS na hoście (Raspberry Pi)
-sudo apt install -y cups
-sudo usermod -aG lpadmin pi
+System drukuje **dwa rodzaje biletów** (nie drukuje paragonów fiskalnych):
 
-# Dodanie drukarki sieciowej
-sudo lpadmin -p KitchenPrinter -E -v socket://192.168.1.50:9100 -m everywhere
-```
-
-### Szablon wydruku kuchennego
+#### A. Bilet kuchenny (Kitchen Ticket)
+Dla kuchni — duża czcionka, bez cen, z uwagami i alergenami.
 
 ```
 ================================
-      ZAMOWIENIE #ZAM-001
-      12:34  12.08.2024
+ ZAMOWIENIE #ZAM-001
+ 12:34 12.08.2024
 ================================
 
 PIZZA MARGHERITA (x2)
@@ -155,17 +138,47 @@ PIZZA CAPRICIOSA (x1)
   [DUZA 50cm]
 
 --------------------------------
-DOSTAWA: Jan Kowalski
-TEL: 123 456 789
-ADRES: ul. Przykladowa 14/5
-       66-400 Miasto
-PIETRO: 2  DOMOFON: 5
-UWAGI: Prosze o cichy dzwonek
---------------------------------
-
 SZACOWANY CZAS: 45 min
 ================================
 ```
+
+#### B. Bilet kierowcy (Driver Ticket) — zawiera DANE DO KASY
+Dla kierowcy **i dla kasjerów** — zawiera pełne rozbicie pozycji z cenami, aby kasjer mógł przepisać 1:1 na kasę fiskalną.
+
+```
+================================
+ BILET KIEROWCY / DLA KASY
+ ZAM-20240813-001
+ 14:32 | Dostawa
+================================
+
+PIZZA MARGHERITA (x1)
+  [SREDNIA 40cm]     39,00 zl
+  + Extra ser          5,00 zl
+  + Pieczarki          3,00 zl
+  Razem pozycja:      47,00 zl
+
+PIZZA CAPRICIOSA (x1)
+  [DUZA 50cm]        49,00 zl
+  Razem pozycja:      49,00 zl
+
+--------------------------------
+Suma produkty:        96,00 zl
+Dostawa:               8,00 zl
+Napiwek:               5,00 zl
+--------------------------------
+RAZEM DO ZAPLATY:    109,00 zl
+================================
+Dane do kasy fiskalnej:
+  Jan Kowalski
+  ul. Przykladowa 14/5
+  66-400 Gorzow Wlkp.
+  Tel: 123 456 789
+  Uwagi: Prosze o cichy dzwonek
+================================
+```
+
+**Zasada**: Kierowca dostaje bilet. Przy kasie bilet służy jako źródło danych do przepisania na kasę fiskalną. Numer zamówienia (`ZAM-XXX`) jest taki sam na bilecie kierowcy i w systemie — łatwo powiązać.
 
 ---
 
@@ -252,14 +265,21 @@ sudo apt install -y fail2ban
 
 # Konfiguracja SSH
 sudo tee /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+bantime = 3600
+maxretry = 3
+
 [sshd]
 enabled = true
 port = 2222
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = 3
-bantime = 3600
 EOF
 
 sudo systemctl restart fail2ban
 ```
+
+---
+
+*Hardware v1.1 — 2026-08-13*  
+*Zmiany: doprecyzowanie roli drukarek (bilety wewnętrzne, nie paragony fiskalne), nowy szablon biletów kierowcy z danymi do kasy.*

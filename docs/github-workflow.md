@@ -34,15 +34,15 @@ restaurant-order-system/
 ## 2. Branching Strategy (Git Flow Light)
 
 ```
-main        ───────●────────●────────●────────●─────►  (produkcja)
-                   │        │        │        │
-release/1.0  ──────┘        │        │        │
-                   │        │        │        │
-develop     ───────●────────●────────●────────●─────►  (staging)
-              │    │   │    │   │    │   │    │
-feature/xyz ──┘    └───┘    └───┘    └───┘    └──►
-              │
-hotfix/abc  ──┘
+main ───────●────────●────────●────────●─────► (produkcja)
+            │        │        │        │
+release/1.0 ──────┘ │        │        │
+            │        │        │        │
+develop ───────●────────●────────●────────●─────► (staging)
+     │   │   │   │   │   │   │   │
+feature/xyz ──┘   └───┘   └───┘   └──►
+            │
+hotfix/abc ──┘
 ```
 
 - `main` - stabilna wersja produkcyjna
@@ -152,7 +152,6 @@ jobs:
             ghcr.io/gamerpolska123-collab/webowo-ros-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Analogicznie dla web, dashboard, printer
 ```
 
 ---
@@ -223,11 +222,8 @@ MAJOR.MINOR.PATCH
 ### Tworzenie release'u
 
 ```bash
-# Na branchu main
 git tag -a v1.0.0 -m "Pierwsza wersja produkcyjna"
 git push origin v1.0.0
-
-# GitHub automatycznie tworzy Release z changelogiem
 ```
 
 ---
@@ -273,9 +269,14 @@ Plik `CHANGELOG.md` w root repozytorium:
 - Eksport raportów do Excel
 
 ### Fixed
-- Błąd z podwójnym drukowaniem paragonów
 - Poprawka responsywności na iPhone SE
+- Optymalizacja czasu ładowania KDS
 
 ### Security
 - Aktualizacja zależności (axios, lodash)
 ```
+
+---
+
+*GitHub Workflow v1.1 — 2026-08-13*
+*Zmiany: aktualizacja przykładu w changelogu (usunięto wzmiankę o paragonach fiskalnych).*
