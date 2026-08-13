@@ -1,391 +1,239 @@
-# README-AI.md — Instrukcja Kontynuacji Projektu
-
-> **Ten plik służy jako kontekst dla nowej sesji AI.**
-> Wklej całą zawartość tego pliku (lub załącz jako attachment) na początku nowej rozmowy, aby AI mogło płynnie kontynuować pracę nad projektem.
+# 🤖 README-AI.md
+## Instrukcja dla Asystenta AI
 
 ---
 
-## 1. O PROJEKCIE
+## 1. KONTEXT PROJEKTU
 
-**Nazwa robocza**: Restaurant Order System (ROS)
-**Cel**: Kompleksowy system zamówień online dla restauracji (pizzerii), działający wyłącznie we własnym kanale sprzedażowym — bez agregatorów (pyszne.pl, Glovo). System ma maksymalizować wartość zamówienia (AOV) przez zaawansowane mechanizmy upsellu i triki psychologiczne (CRO).
+**Nazwa:** Restaurant Order System (ROS)  
+**Cel:** System zamówień online dla pizzerii z zaawansowanym upsellem, torba dostawcza zamiast koszyka, gamifikacja (confetti, progress bar), KDS, drukarki termiczne (bilety wewnętrzne — nie paragony fiskalne), dashboard admina, płatności Stripe/PayU, deployment na Raspberry Pi 4.
 
-**Właściciel projektu**: Restauracja (dane poufne — nazwa, adres, logo zostaną wdrożone w finalnej fazie).
-**Deployment**: Raspberry Pi 4 (ARM64), Docker, GitHub Actions CI/CD.
-**Sprzedaż**: System będzie sprzedany firmie po ukończeniu.
+**Stack:** Next.js 14 (App Router) + NestJS + PostgreSQL 16 + Redis 7 + Socket.io + Prisma + Tailwind + shadcn/ui + Turborepo + pnpm + Docker.
 
 ---
 
-## 2. TECH STACK
+## 2. ARCHITEKTURA SYSTEMU
 
-| Warstwa | Technologia |
-|---------|-------------|
-| Frontend (klient) | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
-| Dashboard | Next.js 14, TypeScript, Tailwind, shadcn/ui |
-| Backend | NestJS (Node.js), TypeScript, Prisma ORM |
-| Baza danych | PostgreSQL 16 |
-| Cache / Queue / PubSub | Redis 7 |
-| Real-time | Socket.io |
-| Drukarki | Node.js Printer Service (node-escpos + CUPS) — bilety wewnętrzne, NIE paragony fiskalne |
-| Płatności | Stripe + PayU |
-| Konteneryzacja | Docker + Docker Compose (multi-arch: AMD64 + ARM64) |
-| Reverse Proxy | Nginx + Let's Encrypt SSL |
-| Monorepo | Turborepo + pnpm workspaces |
-| CI/CD | GitHub Actions |
-
----
-
-## 3. ARCHITEKTURA
-
-```
-[KLIENT] → Nginx (:80/443) → [Next.js Web :3000]
-                          [Next.js Dashboard :3001]
-                          [NestJS API :4000]
-                          [Socket.io WS :4001]
-                          [Printer Service :5000]
-                                    ↓
-                          [PostgreSQL :5432]
-                          [Redis :6379]
-                          [Thermal Printers USB/NET]
-```
-
-Struktura repo:
+### Monorepo (Turborepo)
 ```
 restaurant-order-system/
 ├── apps/
-│   ├── web/              # Strona dla klientów (Next.js)
-│   ├── dashboard/        # Panel admina/kuchni/kierowcy
-│   ├── api/              # Backend API (NestJS)
-│   └── printer-service/  # Serwis drukarek (Node.js) — bilety wewnętrzne
+│   ├── api/              # NestJS + Prisma (backend)
+│   ├── web/              # Next.js 14 (strona klienta)
+│   ├── dashboard/        # Next.js 14 (panel admina)
+│   └── printer-service/  # Node.js + Redis (drukarki ESC/POS)
 ├── packages/
-│   ├── shared-types/     # Wspólne typy TypeScript
-│   ├── ui/               # Wspólne komponenty shadcn/ui
-│   └── config/           # ESLint, TS config
+│   ├── shared-types/     # TypeScript types (Product, Order, etc.)
+│   ├── ui/               # shadcn/ui + custom components
+│   └── config/           # tsconfig, eslint, prettier
 ├── infra/
-│   ├── docker/           # Dockerfile'y + docker-compose
-│   └── nginx/            # Nginx config + SSL
-└── docs/                 # Dokumentacja (11 plików)
+│   ├── docker/           # Dockerfiles + docker-compose
+│   └── nginx/            # Reverse proxy config
+└── .github/workflows/    # CI/CD
 ```
+
+### Baza Danych (PostgreSQL 16)
+- **Users** (role: guest, customer, kitchen, driver, admin)
+- **Categories** (hierarchia kategorii)
+- **Products** (z wariantami, addonami, allergenami)
+- **Orders** (z historią statusów)
+- **OrderItems** (z addonami)
+- **Payments** (Stripe/PayU integracja)
+- **SiteConfig** (kolory, animacje, dźwięki)
+
+### Komunikacja Real-time (Socket.io)
+- **Room:** `order:{orderId}` — aktualizacje statusu zamówienia
+- **Room:** `kitchen` — nowe zamówienia dla KDS
+- **Room:** `driver:{driverId}` — przypisane dostawy
+
+---
+
+## 3. ZASADY KODOWANIA (MUSI BYĆ PRZESTRZEGANE)
+
+### Język
+- **Kod, zmienne, komentarze, nazwy plików:** ANGIELSKI
+- **Dokumentacja użytkownika (UI, etykiety):** POLSKI
+- **Commity:** Conventional Commits po angielsku
+
+### TypeScript
+- Strict mode włączony
+- Brak `any` — używaj `unknown` + type guards
+- Wszystkie funkcje muszą mieć zdefiniowane return types
+- Interfejsy w `packages/shared-types`
+
+### Style
+- Tailwind CSS — utility-first
+- shadcn/ui jako baza komponentów
+- Kolory zdefiniowane w `tailwind.config.ts` (primary, secondary, accent, dark, light, gold, danger)
+- Animacje w `packages/ui/src/styles/animations.css`
+
+### Bezpieczeństwo
+- JWT w HttpOnly cookies (nie localStorage!)
+- Walidacja Zod na wszystkich endpointach
+- Rate limiting (10 req/s per IP)
+- SQL injection impossible (Prisma ORM)
+- XSS protection (React auto-escaping + CSP headers)
+- Nie commituj `.env`!
 
 ---
 
 ## 4. STAN PROJEKTU
 
-✅ Dokumentacja: Kompletna w folderze docs/:
-- README.md, etapy.md, architektura.md, ui-ux.md, api.md
-- docker.md, hardware.md, security.md, setup.md
-- github-workflow.md, moduly-przyszlosci.md
+✅ Dokumentacja: Kompletna w folderze docs/  
+✅ Etap 0 — Infrastruktura i Setup: Zakończony (monorepo, Docker, CI/CD, env)  
+✅ Etap 1 — Design System i Prototypy UX: Zakończony (tokens, shadcn/ui, custom components, animacje, prototypy web+dashboard)  
+✅ Etap 2 — Backend Core: Zakończony (Prisma schema, NestJS auth, CRUD API, Redis cache, WebSocket, testy E2E)  
+❌ Etap 3 — Frontend Web: Nie rozpoczęty  
+❌ Etap 4 — Panel Administracyjny: Nie rozpoczęty  
+❌ Etap 5 — System Dostaw i KDS: Nie rozpoczęty  
+❌ Etap 6 — Drukarki i Fiskalność: Nie rozpoczęty  
+❌ Etap 7 — Płatności Online: Nie rozpoczęty  
+❌ Etap 8 — Optymalizacja i Deployment: Nie rozpoczęty  
 
-❌ Kod: Nie rozpoczęty. Brak repozytorium kodu.
-❌ Etap 1-8: Nie rozpoczęte.
-
-Aktualny status: Projekt na etapie PRZED IMPLEMENTACJĄ.
-Następny krok: Stworzenie repozytorium kodu i rozpoczęcie Etapu 0.
+**Aktualny status:** Etap 2 zakończony. Gotowe do implementacji Frontend Web (Etap 3).
 
 ---
 
 ## 5. ETAPY IMPLEMENTACJI
 
-### ETAP 0 — Infrastruktura i Setup (Tydzień 1)
-Cel: Gotowe środowisko deweloperskie z działającymi kontenerami.
-
-Deliverables:
-1. Inicjalizacja monorepo (Turborepo + pnpm workspaces)
-2. Konfiguracja TypeScript (strict), ESLint, Prettier
-3. Struktura katalogów (apps/, packages/)
-4. Inicjalizacja apps/api (NestJS)
-5. Inicjalizacja apps/web (Next.js 14 App Router) + Tailwind + shadcn/ui
-6. Inicjalizacja apps/dashboard (Next.js 14) + Tailwind + shadcn/ui
-7. Inicjalizacja apps/printer-service (Node.js + TypeScript)
-8. Pakiet packages/shared-types
-9. Pakiet packages/ui
-10. Docker Compose dev z PostgreSQL + Redis
-11. Dockerfile'y dla wszystkich aplikacji
-12. GitHub Actions CI (ci.yml)
-13. Pliki .env.example
-
-Kryteria akceptacji:
-- pnpm install działa bez błędów
-- docker-compose up -d postgres redis uruchamia bazę
-- pnpm dev uruchamia wszystkie aplikacje
-- Każdy PR przechodzi checki CI
-
-### ETAP 1 — Design System i Prototypy UX (Tydzień 2-3)
-Cel: Zaakceptowane projekty UI + komponenty w kodzie.
-
-Deliverables:
-- Design System (Figma lub kod)
-- Biblioteka komponentów w packages/ui
-- Komponenty kluczowe:
-  - PizzaBag (torba dostawcza z 4 stanami)
-  - ProductCard (z badge'ami)
-  - FlyToBagAnimation
-  - UpsellModal
-  - BundleBuilder
-  - FreeDeliveryProgress (termometr)
-  - AddonConfigurator
-- Prototypy wszystkich ekranów (mobile-first)
-- Responsywność: mobile, tablet, desktop
-
-### ETAP 2 — Core Backend & Baza Danych (Tydzień 3-5)
-Cel: Działające API + baza z pełnym modelem.
-
-Deliverables:
-- Schema Prisma (Category, Product, Variant, ProductAddon, Order, OrderItem, OrderItemAddon, User, UpsellConfig, BundleConfig, PromoConfig, ProductBadge, PriceHistory, SiteConfig)
-- REST API v1 (wszystkie endpointy z api.md)
-- Autentykacja JWT + HttpOnly cookies + refresh tokens
-- WebSocket Gateway (Socket.io)
-- Seedery z przykładowym menu
-- Testy integracyjne (coverage > 80%)
-
-### ETAP 3 — Frontend Klienta (Tydzień 5-8)
-Cel: Pełnoprawna strona do składania zamówień.
-
-Deliverables:
-- Strona główna z menu (sticky tabs, parallax, hero)
-- Torba dostawcza (4 stany + fly-to-bag animacja)
-- Konfigurator pizzy (graficzny wybór dodatków)
-- System upsellu (cross-sell, bundles, last-minute, promocje)
-- Progress bar darmowa dostawa z confetti
-- Checkout (3 kroki)
-- Śledzenie zamówienia (timeline + WebSocket)
-- PWA (Service Worker, manifest, offline cart)
-- SEO (meta, JSON-LD, sitemap)
-- Lighthouse score > 90
-
-### ETAP 4 — Dashboard Administratora (Tydzień 8-10)
-Cel: Panel zarządzania z natychmiastową synchronizacją.
-
-Deliverables:
-- Logowanie i RBAC
-- Zarządzanie produktami (inline editing cen, historia, toggle dostępności, drag & drop)
-- Zarządzanie upsellem (cross-sell configs, bundles, promos, badges)
-- Zarządzanie zamówieniami
-- Raporty i statystyki (AOV, konwersja upsellu, godziny szczytu)
-- Konfiguracja strony (wygląd, animacje, progi, motyw)
-- Eksport CSV/XLSX
-
-### ETAP 5 — KDS i Drukarki (Tydzień 10-12)
-Cel: System obsługi kuchni i automatyczne drukowanie dokumentów wewnętrznych.
-
-> **ROS drukuje wyłącznie bilety wewnętrzne (kuchenne i kierowcy). Paragon fiskalny wystawia osobna kasa fiskalna restauracji.**
-
-Deliverables:
-- Kitchen Display System (FIFO, Kanban, timer, dźwięki)
-- Printer Service (ESC/POS, szablony: kuchenny, kierowcy)
-  - Bilet kuchenny: pozycje, uwagi, alergeny — bez cen, duża czcionka
-  - Bilet kierowcy: pełne rozbicie cenowe, dane klienta — służy kasjerowi do przepisania na kasę fiskalną 1:1
-- Redis Queue + retry logic
-- Konfiguracja drukarek w dashboardzie
-
-### ETAP 6 — Płatności i Bezpieczeństwo (Tydzień 12-13)
-Cel: Bezpieczne płatności online.
-
-Deliverables:
-- Stripe (karty, 3D Secure) + PayU (BLIK)
-- Webhooki
-- HTTPS + SSL (Let's Encrypt)
-- Rate limiting, Helmet.js, CORS, Zod
-- RODO/GDPR
-- Backup bazy
-
-### ETAP 7 — Optymalizacja i Deployment (Tydzień 13-14)
-Cel: Wdrożenie na Raspberry Pi 4.
-
-Deliverables:
-- Multi-arch Docker images (ARM64)
-- Optymalizacja obrazów
-- Nginx (gzip, brotli, cache)
-- Monitoring (Prometheus + Grafana / Uptime Kuma)
-- Automatyczne backupy
-- Watchtower
-- Dokumentacja wdrożeniowa
-
-### ETAP 8 — Testy, Szkolenie i Odbiór (Tydzień 14-15)
-Cel: Finalne testy i uruchomienie produkcyjne.
-
-Deliverables:
-- Testy UAT
-- Wdrożenie prawdziwego menu, cen i zdjęć
-- Konfiguracja upsellu i promocji
-- Konfiguracja drukarek (bilety kuchenne + kierowcy)
-- Szkolenie personelu (admin, kuchnia, kierowcy, kasjerzy)
-- Dokumentacja użytkownika
-- Uruchomienie produkcyjne
+| Etap | Nazwa | Status |
+|------|-------|--------|
+| 0 | Infrastruktura i Setup | ✅ Zakończony |
+| 1 | Design System i Prototypy UX | ✅ Zakończony |
+| 2 | Backend Core | ✅ Zakończony |
+| 3 | Frontend Web | ❌ Nie rozpoczęty |
+| 4 | Panel Administracyjny | ❌ Nie rozpoczęty |
+| 5 | System Dostaw i KDS | ❌ Nie rozpoczęty |
+| 6 | Drukarki i Fiskalność | ❌ Nie rozpoczęty |
+| 7 | Płatności Online | ❌ Nie rozpoczęty |
+| 8 | Optymalizacja i Deployment | ❌ Nie rozpoczęty |
 
 ---
 
-## 6. ZASADY KODOWANIA
+## 6. KONFIGURACJA ŚRODOWISKA
 
-Język:
-- Kod, komentarze, nazwy zmiennych: ANGIELSKI
-- Dokumentacja użytkownika: POLSKI
-- Commit messages: ANGIELSKI (conventional commits)
+### Wymagania
+- Node.js >= 20.0.0
+- pnpm >= 9.0.0
+- Docker + Docker Compose
 
-Styl:
-- TypeScript: strict mode
-- NestJS: modułowa architektura, DI
-- Next.js: App Router, Server Components
-- Tailwind: utility-first
-- shadcn/ui: bazowe komponenty + rozszerzenia w packages/ui
+### Pierwsze uruchomienie
+```bash
+# 1. Instalacja zależności
+pnpm install
 
-Commits:
-  feat(api): add product upsell configuration endpoints
-  fix(web): resolve fly-to-bag animation on Safari
-  docs: update deployment guide
+# 2. Baza danych i Redis
+docker-compose -f infra/docker/docker-compose.yml up -d postgres redis
 
-Bezpieczeństwo:
-- NIGDY nie commituj .env ani sekretów
-- Hasła: bcrypt cost=12
-- JWT: HttpOnly, Secure, SameSite=Strict cookies
-- SQL: tylko Prisma ORM
-- Input: walidacja Zod na wszystkich endpointach
+# 3. Kopiowanie env files
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+cp apps/dashboard/.env.example apps/dashboard/.env
 
-Wydajność:
-- Next.js: output standalone w produkcji
-- Obrazy: WebP/AVIF, lazy loading
-- Cache: Redis dla menu (5min), sesje (24h)
-- WebSocket: broadcast tylko do relevant rooms
+# 4. Generowanie Prisma Client
+pnpm --filter api db:generate
 
----
+# 5. Migracje
+pnpm --filter api migrate:dev
 
-## 7. KONTEKST BIZNESOWY
+# 6. Seed danych
+pnpm --filter api db:seed
 
-Model przychodów:
-- Marża na pizzy: ~60-70%
-- Marża na napojach: ~80-90% (upsell napojów = priorytet)
-- Koszt dostawy: ~8-12 zł
-- Cel AOV: podnieść z ~45 zł do ~65 zł przez upsell
+# 7. Dev mode (wszystkie aplikacje)
+pnpm dev
+```
 
-Kluczowe KPI:
-- Konwersja: > 15%
-- AOV: > 60 zł
-- Upsell conversion: > 30%
-- Cart abandonment: < 60%
+### Porty
+- Web: http://localhost:3000
+- Dashboard: http://localhost:3001
+- API: http://localhost:4000
+- WebSocket: ws://localhost:4001
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
 
----
+### Testy
+```bash
+# E2E tests
+pnpm --filter api test:e2e
 
-## 8. OGRANICZENIA I DECYZJE ARCHITEKTONICZNE
-
-### ❌ Brak modułu magazynowego (Inventory)
-System **nie monitoruje stanów magazynowych**.
-- Jeżeli brakuje składnika (np. pieczarek), personel ręcznie oznacza produkt jako niedostępny w dashboardzie (`PATCH /admin/products/:id/availability`)
-- Zmiana jest natychmiast broadcastowana przez WebSocket — produkt szarzeje/znika ze strony klienta
-- Decyzja: automatyczny magazyn generuje dodatkową pracę administracyjną, a restauracja ma ustalony proces ręczny
-
-### ❌ Brak drukowania paragonów fiskalnych w ROS
-Restauracja posiada **własną kasę fiskalną** (działa od lat).
-- ROS drukuje wyłącznie **bilety wewnętrzne**: kuchenne (bez cen) i kierowcy (z cenami — do przepisania na kasę fiskalną 1:1)
-- Kasjer otrzymuje bilet kierowcy i przepisuje pozycje na kasę fiskalną
-- Numer zamówienia (`ZAM-YYMMDD-XXX`) jest taki sam na bilecie i w systemie — łatwe powiązanie
+# Unit tests
+pnpm --filter api test
+```
 
 ---
 
-## 8.5 LICENCJE I PRAWO DO ODSPRZEDAŻY (KLUCZOWE)
+## 7. WORKFLOW GITA
 
-System został zbudowany WYŁĄCZNIE na technologiach open-source z licencjami permissive:
-- MIT: Next.js, React, NestJS, Socket.io, Tailwind, shadcn/ui, bcrypt, Zod, Jest
-- Apache 2.0: TypeScript, Prisma, Docker, Playwright
-- BSD: PostgreSQL, Redis OSS, Nginx
-- OFL: Czcionki (Poppins, Inter) — self-hosted
+### Branching
+- `main` — produkcja (Raspberry Pi)
+- `develop` — staging
+- `feature/etap-X-nazwa` — funkcjonalności
+- `hotfix/nazwa` — krytyczne poprawki
 
-CO TO OZNACZA:
-- ✅ Możesz odsprzedać system firmie bez płacenia licencji
-- ✅ Nie musisz ujawniać kodu źródłowego (brak GPL/AGPL/SSPL)
-- ✅ Nie płacisz royalty
+### Commity
+```
+feat(api): add JWT authentication
+fix(web): resolve hydration error in ProductCard
+docs: update API documentation
+refactor(dashboard): extract OrderTable component
+```
 
-CO TRZEBA ZACHOWAĆ:
-- Informacje o licencjach bibliotek w kodzie (komentarze)
-- Pliki LICENSE w node_modules (pnpm robi to automatycznie)
-
-CZEGO UNIKAMY:
-- Redis Stack (SSPL) — używamy Redis OSS (BSD)
-- MongoDB (SSPL) — używamy PostgreSQL
-- Docker Desktop na produkcji — używamy Docker Engine (darmowy na Linux)
-- Google Fonts CDN — czcionki self-hosted (RODO + niezależność)
-
-Szczegółowy audyt: docs/licencje.md
+### PR Checklist
+- [ ] Testy przechodzą (`pnpm test`)
+- [ ] TypeScript strict (`pnpm typecheck`)
+- [ ] ESLint clean (`pnpm lint`)
+- [ ] Build success (`pnpm build`)
+- [ ] Prisma migrate deploy (jeśli zmiana schematu)
 
 ---
 
-## 9. JAK KONTYNUOWAĆ (dla AI)
+## 8. CHECKLISTY KONTROLNE
 
-1. Przeczytaj wszystkie pliki w docs/
-2. Zapytaj użytkownika, który etap rozpoczynamy (domyślnie: Etap 0)
-3. Rozpocznij od inicjalizacji repozytorium
-4. Pracuj etapami — nie przechodź dalej bez zakończenia poprzedniego
-5. Testuj na bieżąco
-6. Pytaj o decyzje przy wyborach architektonicznych
-7. Dokumentuj zmiany
+### Przed każdym commitem
+- [ ] `pnpm lint` — 0 błędów
+- [ ] `pnpm typecheck` — 0 błędów
+- [ ] `pnpm test` — wszystkie przechodzą
+- [ ] Brak `console.log` w kodzie produkcyjnym
+- [ ] `.env` nie jest commitowany
+- [ ] Zmiany w schemacie Prisma mają migrację
 
----
-
-## 10. PLIKI DO PRZECZYTANIA
-
-| Plik | Kiedy |
-|------|-------|
-| docs/README.md | Zawsze na start |
-| docs/etapy.md | Przed każdym etapem |
-| docs/architektura.md | Przed backendem / bazą |
-| docs/ui-ux.md | Przed frontendem |
-| docs/api.md | Przed API |
-| docs/docker.md | Przed kontenerami |
-| docs/setup.md | Przed pierwszym uruchomieniem |
-| docs/security.md | Przed płatnościami / auth |
-| docs/hardware.md | Przed deploymentem na RPi |
-| docs/moduly-przyszlosci.md | Po MVP, przy planowaniu v2 |
-
-## 11. PROMPTY DO ETAPÓW (w folderze prompts/)
-
-Każdy etap ma osobny plik promptu. Wklejaj je do nowego okna AI:
-
-| Plik | Etap | Kiedy użyć |
-|------|------|------------|
-| `prompts/prompt-start.md` | Zawsze | Na początku KAŻDEJ sesji |
-| `prompts/prompt-etap-00.md` | Etap 0 | Infrastruktura + setup |
-| `prompts/prompt-etap-01.md` | Etap 1 | Design System + komponenty |
-| `prompts/prompt-etap-02.md` | Etap 2 | Backend + Baza danych |
-| `prompts/prompt-etap-03.md` | Etap 3 | Frontend Klienta |
-| `prompts/prompt-etap-04.md` | Etap 4 | Dashboard Administratora |
-| `prompts/prompt-etap-05.md` | Etap 5 | KDS + Drukarki |
-| `prompts/prompt-etap-06.md` | Etap 6 | Płatności + Security |
-| `prompts/prompt-etap-07.md` | Etap 7 | Deployment na RPi |
-| `prompts/prompt-etap-08.md` | Etap 8 | Testy + Odbiór |
-
-## 12. WORKFLOW (Jak Pracować z AI)
-
-Szczegółowa instrukcja w `docs/workflow.md`:
-- Jak rozpocząć nową sesję (krok po kroku)
-- Jak zapisać stan pracy po sesji
-- Jak kontynuować po przerwie
-- Limity AI (25 kroków na turę) — jak nie przekroczyć
-- Checklist przed każdą sesją
-
-## 13. LICENCJE — Legalność Odsprzedaży
-
-Szczegóły w `docs/licencje.md`:
-
-✅ **Cały stack kodu jest 100% open-source** (MIT / Apache 2.0 / BSD) — można legalnie odsprzedać bez płacenia za licencje.
-
-| Technologia | Licencja | Odsprzedaż |
-|-------------|----------|------------|
-| Next.js, React, TypeScript | MIT | ✅ Tak |
-| Tailwind CSS, shadcn/ui | MIT | ✅ Tak |
-| NestJS | MIT | ✅ Tak |
-| Prisma ORM | Apache 2.0 | ✅ Tak |
-| PostgreSQL | PostgreSQL License | ✅ Tak |
-| Redis / Valkey | BSD / BSD | ✅ Tak |
-| Socket.io | MIT | ✅ Tak |
-| Docker, Nginx | Apache 2.0 / BSD | ✅ Tak |
-
-Usługi zewnętrzne (Stripe, PayU, Google Maps) — klient płaci bezpośrednio dostawcom, nie ty.
+### Przed deployem
+- [ ] `pnpm build` — success
+- [ ] Docker images buildują się lokalnie
+- [ ] Prisma migrate deploy przetestowany
+- [ ] Environment variables ustawione na serwerze
+- [ ] SSL certyfikaty skonfigurowane
+- [ ] Backup bazy danych
 
 ---
 
-Ostatnia aktualizacja: 2026-08-13
-Wersja: 1.1
-Status: Gotowe do implementacji (Etap 0)
+## 9. INSTRUKCJA DLA AI
 
-**Zmiany w v1.1:**
-- Dodano sekcję 8 (Ograniczenia i decyzje architektoniczne): brak modułu magazynowego, brak drukowania paragonów fiskalnych w ROS
-- Doprecyzowano rolę Printer Service (bilety wewnętrzne, nie paragony fiskalne)
+### Jak pracować z tym projektem
+1. **Przeczytaj wszystkie pliki** w folderze `docs/` i `prompts/` przed rozpoczęciem pracy
+2. **Pracuj etapami** — nie przeskakuj kolejności
+3. **Testuj lokalnie** — uruchom `pnpm dev` i sprawdź w przeglądarce
+4. **Commituj często** — każda funkcjonalność = osobny commit
+5. **Dokumentuj zmiany** — aktualizuj README-AI.md i docs/etapy.md
+
+### Jak zgłaszać problemy
+- Jeśli napotkasz błąd, opisz go szczegółowo (krok po kroku)
+- Dołącz logi z konsoli
+- Wskaż plik i linię kodu
+
+### Jak prosić o zmiany
+- Bądź konkretny ("zmień kolor primary na #E63946")
+- Podaj kontekst ("w kontekście strony głównej")
+- Wskaż plik jeśli wiesz gdzie
+
+---
+
+## 10. KONTAKT I WSPARCIE
+
+**Właściciel repozytorium:** gamerpolska123-collab  
+**Projekt:** WebowoROS  
+**Licencja:** MIT (patrz docs/licencje.md)
+
+---
+
+*Ostatnia aktualizacja: 13.08.2026 — Etap 2 zakończony*

@@ -1,322 +1,148 @@
-# Plan Etapowy (Roadmap)
+# Etapy Implementacji ROS
 
-> **Filozofia**: Każdy etap jest zamkniętym, wdrażalnym przyrostem produktu (MVP + iteracje). Nie przechodzimy dalej, dopóki poprzedni etap nie zostanie zaakceptowany.
-
----
-
-## Etap 0: Infrastruktura i Setup (Tydzień 1)
-
-**Cel**: Przygotowanie środowiska pracy, repozytorium, CI/CD i lokalnej infrastruktury Docker.
+## Etap 0: Infrastruktura i Setup
+**Status:** ✅ Zakończony
 
 ### Deliverables
-- [ ] Monorepo z konfiguracją Turborepo / pnpm workspaces
-- [ ] Konfiguracja ESLint, Prettier, TypeScript (strict mode)
-- [ ] Docker Compose dla środowiska dev (PostgreSQL, Redis, Nginx)
-- [ ] GitHub Actions: CI (testy + lint + build) przy każdym PR
-- [ ] GitHub Actions: CD (auto-deploy na staging Raspberry Pi)
-- [ ] Struktura katalogów i szablonów aplikacji (Next.js, NestJS)
-- [ ] Wspólne pakiety: `shared-types`, `ui`, `config`
-- [ ] Dokumentacja setupu deweloperskiego
-
-### Kryteria akceptacji
-- `pnpm dev` uruchamia wszystkie usługi lokalnie
-- Każdy PR przechodzi checki CI
-- Docker Compose działa bez błędów na x86_64 i ARM64
+- [x] Monorepo Turborepo + pnpm workspaces
+- [x] TypeScript strict mode + ESLint + Prettier
+- [x] Struktura katalogów: apps/, packages/, infra/
+- [x] Aplikacje: api, web, dashboard, printer-service
+- [x] Docker Compose dev (PostgreSQL 16 + Redis 7)
+- [x] 4 Dockerfile'y (multi-stage, Alpine, standalone)
+- [x] GitHub Actions CI (lint + typecheck + test + build)
+- [x] GitHub Actions CD (manual deploy na Raspberry Pi)
+- [x] Pliki .env.example (root + 4 aplikacje)
 
 ---
 
-## Etap 1: Design System i Prototypy UX (Tydzień 2-3)
-
-**Cel**: Stworzenie spójnego języka wizualnego i interaktywnych prototypów wszystkich ekranów.
+## Etap 1: Design System i Prototypy UX
+**Status:** ✅ Zakończony
 
 ### Deliverables
-- [ ] Kompletny Design System w Figma (kolory, typografia, spacing, komponenty)
-- [ ] Biblioteka komponentów shadcn/ui z rozszerzeniami:
-  - Pizza Bag (torba dostawcza zamiast koszyka)
-  - Fly-to-bag animation prototype
-  - Product card z badge'ami (bestseller, szef poleca)
-  - Upsell modal
-  - Bundle builder
-  - Progress bar "darmowa dostawa"
-- [ ] Prototypy interaktywne (Figma) dla:
-  - Strony głównej z menu i torebą
-  - Modalu dodatków do pizzy (graficzny konfigurator)
-  - Modalu upsellu (cross-sell)
-  - Ekranu torby (rozwiniętej)
-  - Checkoutu z "ostatnią szansą"
-  - Dashboardu kuchni (KDS)
-  - Dashboardu administratora (zarządzanie produktami, cenami, upsellem)
-  - Widoku kierowcy
-- [ ] Dokumentacja UX z trikami psychologicznymi (zob. `ui-ux.md`)
-- [ ] Responsywność: mobile-first (70% ruchu to telefony)
-
-### Kryteria akceptacji
-- Wszystkie ekrany zaprojektowane w 3 breakpointach (mobile, tablet, desktop)
-- Prototypy przetestowane z użytkownikami (5 osób)
-- Design System zaakceptowany przez Klienta
-- **Torba dostawcza** zamiast koszyka zaakceptowana jako główny wzorzec
+- [x] Design Tokens (colors, typography, spacing, animations)
+- [x] shadcn/ui base components (Button, Card, Input, Badge, Dialog, Tabs, Toast)
+- [x] Custom pizza components (PizzaBag, ProductCard, FlyToBag, UpsellModal, BundleBuilder, FreeDeliveryProgress, AddonConfigurator, CheckoutTimeline, LastMinuteAddons, PizzaBuilder)
+- [x] Animacje CSS (10 keyframes: flyToBag, shake, pulseBorder, squashStretch, confettiFall, slideUp, fadeIn, scaleIn, bounceIn, float)
+- [x] Tailwind config z custom colors i animations (web + dashboard)
+- [x] Prototyp strony głównej (hero, kategorie, grid produktów, upsell modal, free delivery progress, sticky bottom bar, adres, opinie, PWA)
+- [x] Prototyp torby (bag) z wizualizacją, usuwaniem itemów, podsumowaniem
+- [x] Prototyp checkout (3-krokowy: torba → dane → płatność, timeline, formularze, last-minute addons)
+- [x] Prototyp menu (kategorie tabs, grid produktów, filtry)
+- [x] Prototyp track (śledzenie zamówienia, timeline 5 kroków)
+- [x] Prototyp dashboard (sidebar, stat cards, tabela zamówień, quick actions)
+- [x] Prototyp KDS (karty zamówień, advance status, badge liczniki)
+- [x] Prototyp produkty (grid, search, toggle active, badges)
+- [x] Prototyp zamówienia (lista, filtry statusów, akcje status change)
 
 ---
 
-## Etap 2: Core Backend & Baza Danych (Tydzień 3-5)
-
-**Cel**: Stworzenie solidnego fundamentu API, modeli danych i autentykacji.
+## Etap 2: Backend Core
+**Status:** ✅ Zakończony
 
 ### Deliverables
-- [ ] Schemat bazy danych (Prisma ORM):
-  - Menu (kategorie, produkty, warianty, dodatki)
-  - Zamówienia (z promocjami i upsellem)
-  - Użytkownicy (role: guest, customer, kitchen, driver, admin)
-  - Konfiguracja (upsell, promocje, zestawy, badge'y, ustawienia strony)
-  - Historia cen (audyt zmian)
-- [ ] REST API v1:
-  - Menu (CRUD kategorii, produktów, wariantów, dodatków)
-  - Zamówienia (tworzenie, statusy, historia, aplikowanie promocji)
-  - Użytkownicy (rejestracja, logowanie, adresy)
-  - Konfiguracja (godziny otwarcia, strefy dostawy, ceny dostawy)
-  - **Upsell configs** (rekomendacje, zestawy, promocje)
-  - **Site config** (wygląd, animacje, progi)
-- [ ] Autentykacja: JWT + refresh tokens (HttpOnly cookies)
-- [ ] Role: `guest`, `customer`, `kitchen`, `driver`, `admin`
-- [ ] WebSocket: podstawowa infrastruktura Socket.io
-- [ ] Seedery z przykładowym menu (pizza, makarony, zupy, napoje)
-- [ ] Testy jednostkowe i integracyjne (Jest, Supertest)
-
-### Kryteria akceptacji
-- 100% endpointów pokrytych testami integracyjnymi
-- Postman collection gotowa do testowania
-- Baza danych obsługuje złożone relacje (menu + warianty + dodatki + promocje + upsell)
-- **Zmiana ceny produktu w API natychmiast broadcastowana przez WebSocket**
+- [x] Prisma schema (17 models, 11 enums, indexes, relations, cascade delete)
+- [x] Seed data (seed.ts: 5 categories, 13 products, variants, addons, badges, admin user)
+- [x] Seed upsell configs (seed-upsell.ts: 3 upsell configs, 2 bundles, 3 promos)
+- [x] NestJS modules (Auth, Menu, Orders, Admin, Prisma, Redis, Gateway)
+- [x] JWT authentication (access + refresh tokens, HttpOnly cookies, token rotation)
+- [x] RBAC (RolesGuard, @Roles decorator, 5 role levels)
+- [x] CRUD API dla produktów i kategorii (Admin module)
+- [x] Order creation flow (walidacja produktów, wariantów, addonów, kalkulacja ceny, status transitions)
+- [x] Redis caching (menu cache 5min, product cache 10min, cache invalidation)
+- [x] Rate limiting (ThrottlerModule: 10r/s, 100r/m)
+- [x] Security middleware (Helmet, CORS, cookie-parser, CSP headers)
+- [x] WebSocket Gateway (join_order, join_kitchen, join_driver, emit methods)
+- [x] Zod validation pipe (global validation, detailed error responses)
+- [x] Global exception filter (standardized error format)
+- [x] E2E tests (auth, menu, orders — Supertest + Jest)
 
 ---
 
-## Etap 3: Frontend Klienta - Strona Zamówień (Tydzień 5-8)
+## Etap 3: Frontend Web
+**Status:** ❌ Nie rozpoczęty
 
-**Cel**: Pełnoprawna strona do składania zamówień z maksymalizacją konwersji.
-
-### Deliverables
-- [ ] Strona główna z menu posegregowanym na kategorie (z sticky navigation)
-- [ ] **Torba dostawcza** zamiast koszyka:
-  - Ikona torby w headerze z dynamicznym stanem (pusta → pełna)
-  - Animacja "fly-to-bag" (produkt leci do torby po łuku)
-  - Efekt cząsteczek (ser, pomidor, bazylia)
-  - Sticky bottom bar z podsumowaniem
-  - Ekran torby z wizualizacją produktów "w środku"
-- [ ] **Konfigurator pizzy** (graficzny):
-  - Wybór rozmiaru (pizza rośnie na grafice)
-  - Dodatki wyświetlane na grafice pizzy (CSS layers)
-  - Cena aktualizowana na żywo
-- [ ] **System upsellu**:
-  - Smart cross-sell modal po dodaniu produktu
-  - "Uzupełnij swoją pizzę" (addon modal z grafiką)
-  - Bundle builder (interaktywny kreator zestawów)
-  - Last-minute add-ons (przed płatnością)
-  - "Dodaj za 1 zł" (loss leader promocje)
-- [ ] **Gamifikacja**:
-  - Progress bar "darmowa dostawa" z termometrem
-  - Confetti (ikony jedzenia) przy osiągnięciu progu
-  - Shake torby przy błędzie minimum
-- [ ] Koszyk z dynamicznymi obliczeniami (promocje, upsell)
-- [ ] Checkout (dane kontaktowe, adres, wybór dostawy/odbioru, płatność)
-- [ ] Strona śledzenia zamówienia (real-time via WebSocket, ilustrowany timeline)
-- [ ] System ocen i opinii (po realizacji zamówienia)
-- [ ] Implementacja trików psychologicznych (zob. `ui-ux.md`):
-  - Social proof, scarcity, anchoring, progress bar, upselling
-- [ ] SEO: meta tagi, structured data (JSON-LD dla Restaurant), sitemap
-- [ ] PWA: Service Worker, manifest, offline cart
-- [ ] Analityka: Google Analytics 4 + Meta Pixel (opcjonalnie)
-
-### Kryteria akceptacji
-- Lighthouse score > 90 (Performance, Accessibility, SEO)
-- Koszyk działa płynnie na urządzeniach mobilnych (3G)
-- Pełna ścieżka: wejście → zamówienie < 3 minuty
-- **Animacja fly-to-bag działa płynnie (60fps) na mobile**
-- **Upsell modal wyświetla się w < 200ms po dodaniu produktu**
+### Plan
+- [ ] Strona główna z real API (produkty, kategorie z backendu)
+- [ ] Torba (bag) z real-time updates (Socket.io)
+- [ ] Checkout z walidacją formularzy (Zod + React Hook Form)
+- [ ] Strona śledzenia zamówienia (track/{orderId})
+- [ ] Animacje: fly-to-bag, confetti, shake, squash-stretch
+- [ ] Dźwięki (add-to-bag, order-confirmed)
+- [ ] Social proof (toast z ostatnimi zamówieniami)
+- [ ] Responsive design (mobile-first)
+- [ ] SEO (meta tags, structured data)
 
 ---
 
-## Etap 4: Dashboard Administratora (Tydzień 8-10)
+## Etap 4: Panel Administracyjny
+**Status:** ❌ Nie rozpoczęty
 
-**Cel**: Panel zarządzania treścią, zamówieniami, cenami i konfiguracją upsellu w czasie rzeczywistym.
-
-### Deliverables
-- [ ] Logowanie i zarządzanie użytkownikami (RBAC)
-- [ ] Zarządzanie menu:
-  - Dodawanie/edycja/usuwanie kategorii i produktów
-  - Zarządzanie wariantami (rozmiary pizzy) i dodatkami
-  - **Zmiana cen z natychmiastową synchronizacją na stronie klienta** (WebSocket broadcast)
-  - Zarządzanie dostępnością produktów (toggle "dziś niedostępne") — **ręcznie przez personel, bez modułu magazynowego**
-  - **Inline editing cen** (kliknij cenę → wpisz nową → Enter)
-  - **Historia zmian cen** (wykres + audyt: kto, kiedy, stara→nowa)
-- [ ] **Zarządzanie upsellem i konwersją**:
-  - Smart cross-sell: przypisywanie rekomendacji do produktów
-  - Bundle builder: tworzenie zestawów z rabatem
-  - Promocje czasowe: "dodaj za 1 zł", darmowa dostawa, progi
-  - Badge'y: bestseller, nowość, szef poleca (ręczne + automatyczne)
-  - Powiadomienia toast (social proof) - konfiguracja treści i częstotliwości
-- [ ] **Konfiguracja wyglądu strony**:
-  - Wybór ikony: torba na pizzę / klasyczny koszyk
-  - Włączanie/wyłączanie animacji (fly-to-bag, confetti, shake)
-  - Motyw: jasny / ciemny / auto
-  - Dźwięki: włącz/wyłącz
-  - Konfigurator pizzy: włącz/wyłącz
-- [ ] Zarządzanie zamówieniami:
-  - Lista zamówień z filtrami (status, data, typ)
-  - Szczegóły zamówienia (produkty, adres, płatność, zastosowane promocje)
-  - Zmiana statusu zamówienia
-  - Anulowanie i zwroty
-- [ ] Raporty i statystyki:
-  - Sprzedaż dzienna/tygodniowa/miesięczna
-  - Najpopularniejsze produkty
-  - Średnia wartość zamówienia (AOV)
-  - **Konwersja upsellu** (ile razy pokazano vs zaakceptowano)
-  - Godziny szczytu
-- [ ] Konfiguracja systemu:
-  - Godziny otwarcia (z wyjątkami świątecznymi)
-  - Strefy dostawy z mapą (Google Maps API)
-  - Ceny dostawy per strefa
-  - Minimalna wartość zamówienia
-  - Próg darmowej dostawy
-
-### Kryteria akceptacji
-- Zmiana ceny produktu widoczna na stronie klienta w < 2 sekundy
-- Dashboard działa płynnie na tablecie (iPad dla kierowców/kuchni)
-- Eksport raportów do CSV/XLSX
-- **Właściciel może samodzielnie skonfigurować upsell bez pomocy dewelopera**
-- **Zmiana konfiguracji strony (animacje, progi) natychmiast widoczna na stronie**
+### Plan
+- [ ] Auth guard (login, JWT, role-based access)
+- [ ] CRUD produktów (zdjęcia, warianty, addony, allergeny)
+- [ ] CRUD kategorii (drag & drop sortowanie)
+- [ ] Zarządzanie zamówieniami (lista, filtry, zmiana statusu)
+- [ ] KDS (Kitchen Display System) z Socket.io
+- [ ] Statystyki i raporty (dzienne, tygodniowe, miesięczne)
+- [ ] Zarządzanie dostawcami (lista, status, historia)
+- [ ] Konfiguracja strony (kolory, animacje, dźwięki, progi darmowej dostawy)
 
 ---
 
-## Etap 5: Kitchen Display System (KDS) i Drukarki (Tydzień 10-12)
+## Etap 5: System Dostaw i KDS
+**Status:** ❌ Nie rozpoczęty
 
-**Cel**: System obsługi kuchni i automatyczne drukowanie dokumentów wewnętrznych.
-
-> **ROS drukuje wyłącznie bilety wewnętrzne. Paragon fiskalny wystawia osobna kasa fiskalna restauracji.**
-
-### Deliverables
-- [ ] **KDS (Kitchen Display System)**:
-  - Ekran zamówień w kolejności przyjścia (FIFO)
-  - Kolorowe statusy (nowe, w przygotowaniu, gotowe)
-  - Timer przy każdym zamówieniu (od momentu złożenia)
-  - Grupowanie pozycji (np. 3x Margherita na jednym bilecie)
-  - Dźwiękowe powiadomienia o nowym zamówieniu
-  - Tryb "Bump" (przesuwanie między kolumnami jak Kanban)
-- [ ] **Serwis drukarek (Printer Service)**:
-  - Obsługa drukarek termicznych ESC/POS (USB i Ethernet)
-  - **Dwa szablony wydruków** (ROS nie drukuje paragonów fiskalnych):
-    - **Bilet kuchenny** (Kitchen Ticket): pozycje, uwagi, czas zamówienia, alergeny — bez cen, duża czcionka
-    - **Bilet kierowcy** (Driver Ticket): pełne rozbicie pozycji z cenami, dane klienta, adres, napiwek, suma do zapłaty — służy kasjerowi do przepisania na kasę fiskalną 1:1
-  - Automatyczny wydruk przy nowym zamówieniu (bilet kuchenny) i przy statusie "gotowe" (bilet kierowcy)
-  - Kolejka wydruków (Redis Queue) z retry logic
-- [ ] Konfiguracja drukarek w dashboardzie (IP, port, typ szablonu, przypisanie do kuchni/kierowcy)
-
-### Kryteria akceptacji
-- Nowe zamówienie drukuje bilet kuchenny w < 5 sekund od złożenia
-- Bilet kierowcy zawiera pełne rozbicie cenowe — kasjer przepisuje 1:1 na kasę fiskalną bez zgadywania
-- KDS działa bezawaryjnie przez 8h ciągłej pracy
-- Możliwość podłączenia min. 2 drukarek jednocześnie (kuchnia + kierowca/kasa)
+### Plan
+- [ ] KDS z Socket.io (real-time nowe zamówienia)
+- [ ] Timer przygotowania (countdown od przyjęcia zamówienia)
+- [ ] Przypisywanie dostawców do zamówień
+- [ ] Mapa dostaw (Leaflet.js z trasą)
+- [ ] Statusy dostawy (przygotowanie → gotowe → w drodze → dostarczone)
+- [ ] Powiadomienia SMS (Twilio) o statusie zamówienia
+- [ ] Historia tras dostawcy
 
 ---
 
-## Etap 6: Płatności i Bezpieczeństwo (Tydzień 12-13)
+## Etap 6: Drukarki i Fiskalność
+**Status:** ❌ Nie rozpoczęty
 
-**Cel**: Bezpieczne i wygodne płatności online oraz pełne zabezpieczenie systemu.
-
-### Deliverables
-- [ ] Integracja płatności (Stripe lub PayU):
-  - Płatność kartą (3D Secure)
-  - BLIK (jeśli dostępny w API)
-  - Płatność przy odbiorze (gotówka/terminal)
-- [ ] Webhooki: obsługa statusów płatności (sukces, failure, refund)
-- [ ] HTTPS + SSL (Let's Encrypt, auto-renewal)
-- [ ] Rate limiting, CORS, Helmet.js
-- [ ] Walidacja wszystkich inputów (Zod)
-- [ ] Polityka prywatności i regulamin (RODO/GDPR compliant)
-- [ ] Backup bazy danych (automatyczny, codzienny)
-
-### Kryteria akceptacji
-- Przejście płatności end-to-end w środowisku testowym
-- Audyt bezpieczeństwa (OWASP Top 10)
-- Certyfikat SSL z oceną A+ na SSL Labs
+### Plan
+- [ ] Integracja node-escpos (drukarki termiczne USB)
+- [ ] Format biletu wewnętrznego (zamówienie, adres, produkty, cena)
+- [ ] Drukowanie automatyczne po potwierdzeniu zamówienia
+- [ ] Drukowanie na żądanie z dashboardu
+- [ ] Testy z drukarką Epson TM-T20III
+- [ ] Obsługa błędów drukowania (fallback: PDF)
 
 ---
 
-## Etap 7: Optymalizacja i Deployment (Tydzień 13-14)
+## Etap 7: Płatności Online
+**Status:** ❌ Nie rozpoczęty
 
-**Cel**: Wdrożenie na Raspberry Pi 4 i optymalizacja wydajności.
-
-### Deliverables
-- [ ] Multi-arch Docker images (linux/arm64)
-- [ ] Optymalizacja obrazów (Alpine Linux, multi-stage builds)
-- [ ] Nginx: gzip, brotli, cache, rate limiting
-- [ ] PM2 / systemd dla procesów Node.js (fallback)
-- [ ] Monitoring:
-  - Logs (Loki / simple file rotation)
-  - Metrics (Prometheus + Grafana dashboards)
-  - Uptime monitoring (Uptime Kuma)
-- [ ] Automatyczne backupy (restic / rclone do chmury)
-- [ ] Dokumentacja wdrożeniowa (runbook)
-
-### Kryteria akceptacji
-- Strona ładuje się w < 2s na Pi 4 (LTE/WiFi)
-- System obsługuje 50 jednoczesnych zamówień/godzinę
-- Uptime > 99.5% (monitoring przez 7 dni)
+### Plan
+- [ ] Stripe integration (karty, Google Pay, Apple Pay)
+- [ ] PayU integration (BLIK, przelewy)
+- [ ] Webhook handlers (Stripe + PayU)
+- [ ] Obsługa zwrotów (refundy)
+- [ ] Bezpieczne przechowywanie kluczy API (environment variables)
+- [ ] Testy płatności (Stripe test mode, PayU sandbox)
+- [ ] Walidacja płatności (podpis webhook, idempotency)
 
 ---
 
-## Etap 8: Testy, Szkolenie i Odbiór (Tydzień 14-15)
+## Etap 8: Optymalizacja i Deployment
+**Status:** ❌ Nie rozpoczęty
 
-**Cel**: Finalne testy, wdrożenie danych Klienta, szkolenie personelu.
-
-### Deliverables
-- [ ] Testy UAT (User Acceptance Testing) z personelem restauracji
-- [ ] Wdrożenie prawdziwego menu, cen i zdjęć
-- [ ] Konfiguracja upsellu i promocji zgodnie z preferencjami właściciela
-- [ ] Konfiguracja drukarek na miejscu (bilety kuchenne + kierowcy)
-- [ ] Szkolenie:
-  - Administrator (dashboard, raporty, zarządzanie cenami i upsellem)
-  - Kuchnia (KDS, obsługa zamówień, oznaczanie produktów jako niedostępne)
-  - Kierowcy (aplikacja, wydruki)
-  - Kasjer (jak czytać bilet kierowcy i przepisywać na kasę fiskalną)
-- [ ] Dokumentacja użytkownika (PDF / wiki)
-- [ ] Umowa serwisowa i SLA (opcjonalnie)
-- [ ] Uruchomienie produkcyjne 🚀
-
-### Kryteria akceptacji
-- Personel samodzielnie obsługuje system po 2h szkolenia
-- Właściciel samodzielnie zmienia ceny i konfiguruje upsell
-- Kierowca odbiera bilet z pełnym rozbiciem cen — kasjer przepisuje w < 30 sekund
-- Brak krytycznych bugów przez 72h testów produkcyjnych
-- Klient akceptuje system i przekazuje finalną płatność
-
----
-
-## 📅 Podsumowanie timeline
-
-| Etap | Czas | Kluczowy rezultat |
-|------|------|-------------------|
-| 0 | 1 tydzień | Gotowe środowisko dev |
-| 1 | 2 tygodnie | Zaakceptowane projekty UI (torba, upsell, animacje) |
-| 2 | 2-3 tygodnie | Działające API + baza (z upsell configs) |
-| 3 | 3-4 tygodnie | Strona zamówień z torbą, animacjami i upsellem |
-| 4 | 2 tygodnie | Panel admina z pełną konfiguracją |
-| 5 | 2 tygodnie | Kuchnia + drukarki (bilety wewnętrzne) |
-| 6 | 1 tydzień | Płatności + security |
-| 7 | 1-2 tygodnie | Raspberry Pi + monitoring |
-| 8 | 1-2 tygodnie | Odbiór + szkolenie |
-| **RAZEM** | **15-17 tygodni** | **Pełny system produkcyjny** |
-
----
-
-## 🔄 Zarządzanie zmianą (Change Management)
-
-Po zakończeniu Etapu 1 każda zmiana wymaga:
-1. Ticketu w GitHub Issues
-2. Oszacowania wpływu na timeline
-3. Akceptacji przez Klienta (dla zmian > 4h pracy)
-4. Aktualizacji dokumentacji
-
----
-
-*Etapy v1.1 — 2026-08-13*  
-*Zmiany: doprecyzowanie Etapu 5 (bilety wewnętrzne zamiast paragonów fiskalnych), bilet kierowcy jako źródło dla kasy, szkolenie kasjerów.*
+### Plan
+- [ ] Docker Compose production (multi-stage builds, health checks)
+- [ ] Nginx reverse proxy (SSL, rate limiting, caching)
+- [ ] Let's Encrypt SSL certificates (auto-renewal)
+- [ ] Raspberry Pi 4 setup (Docker, networking, firewall)
+- [ ] CI/CD pipeline (GitHub Actions → Docker Hub → Raspberry Pi)
+- [ ] Monitoring (Prometheus + Grafana)
+- [ ] Log aggregation (Loki)
+- [ ] Backup strategy (PostgreSQL daily dumps)
+- [ ] Performance optimization (lazy loading, image optimization, code splitting)
+- [ ] Security audit (OWASP Top 10, dependency scanning)
+- [ ] Documentation (API docs, deployment guide, user manual)

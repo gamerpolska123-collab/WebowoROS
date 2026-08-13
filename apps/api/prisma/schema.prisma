@@ -1,0 +1,354 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CORE MODELS
+// ============================================================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  phone         String   @unique
+  passwordHash  String   @map("password_hash")
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  role          UserRole @default(guest)
+  addresses     Json?    // Array of Address objects
+  preferences   Json?    // User preferences JSON
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  orders        Order[]
+  priceHistory  PriceHistory[] @relation("ChangedBy")
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  imageUrl  String?  @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  basePrice   Decimal  @map("base_price") @db.Decimal(10, 2)
+  imageUrl    String?  @map("image_url")
+  isAvailable Boolean  @default(true) @map("is_available")
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  categoryId  String   @map("category_id")
+  tags        String[] @default([])
+  allergens   String[] @default([])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category    Category         @relation(fields: [categoryId], references: [id])
+  variants    Variant[]
+  addons      ProductAddon[]
+  badges      ProductBadge[]
+  priceHistory PriceHistory[]
+  orderItems  OrderItem[]
+
+  @@index([categoryId])
+  @@index([isAvailable])
+  @@index([isFeatured])
+  @@map("products")
+}
+
+model Variant {
+  id              String  @id @default(uuid())
+  productId       String  @map("product_id")
+  name            String
+  priceAdjustment Decimal @map("price_adjustment") @db.Decimal(10, 2)
+  isActive        Boolean @default(true) @map("is_active")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("variants")
+}
+
+model ProductAddon {
+  id          String  @id @default(uuid())
+  productId   String  @map("product_id")
+  name        String
+  price       Decimal @db.Decimal(10, 2)
+  maxQuantity Int     @default(1) @map("max_quantity")
+  isActive    Boolean @default(true) @map("is_active")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_addons")
+}
+
+// ============================================================
+// UPSELL & PROMOTIONS
+// ============================================================
+
+model UpsellConfig {
+  id       String      @id @default(uuid())
+  name     String
+  type     UpsellType
+  rules    Json        // { triggerProductIds, recommendedProductIds, maxRecommendations, displayTiming, thresholdAmount, discount }
+  isActive Boolean     @default(true) @map("is_active")
+  priority Int         @default(0)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("upsell_configs")
+}
+
+model BundleConfig {
+  id           String       @id @default(uuid())
+  name         String
+  discountType DiscountType @map("discount_type")
+  discountValue Decimal     @map("discount_value") @db.Decimal(10, 2)
+  slots        Json         // [{ categoryId, quantity, label }]
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@map("bundle_configs")
+}
+
+model PromoConfig {
+  id         String     @id @default(uuid())
+  name       String
+  type       PromoType
+  conditions Json       // { minOrderValue, applicableProductIds, timeRange }
+  reward     Json       // { type, value }
+  startDate  DateTime   @map("start_date")
+  endDate    DateTime   @map("end_date")
+  isActive   Boolean    @default(true) @map("is_active")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  @@map("promo_configs")
+}
+
+model ProductBadge {
+  id        String     @id @default(uuid())
+  productId String     @map("product_id")
+  badgeType BadgeType  @map("badge_type")
+  isActive  Boolean    @default(true) @map("is_active")
+  expiresAt DateTime?  @map("expires_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_badges")
+}
+
+model PriceHistory {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  variantId String?  @map("variant_id")
+  oldPrice  Decimal  @map("old_price") @db.Decimal(10, 2)
+  newPrice  Decimal  @map("new_price") @db.Decimal(10, 2)
+  changedBy String   @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+  reason    String?
+
+  product Product @relation(fields: [productId], references: [id])
+  user    User    @relation("ChangedBy", fields: [changedBy], references: [id])
+
+  @@index([productId])
+  @@index([changedAt])
+  @@map("price_history")
+}
+
+model SiteConfig {
+  id                    String  @id @default(uuid())
+  theme                 String  @default("light")
+  cartIcon              String  @default("pizza_bag") @map("cart_icon")
+  addAnimation          String  @default("fly_to_bag") @map("add_animation")
+  freeDeliveryThreshold Decimal @default(60.00) @map("free_delivery_threshold") @db.Decimal(10, 2)
+  minOrderValue         Decimal @default(40.00) @map("min_order_value") @db.Decimal(10, 2)
+  enableConfigurator    Boolean @default(true) @map("enable_configurator")
+  enableSounds          Boolean @default(true) @map("enable_sounds")
+  enableConfetti        Boolean @default(true) @map("enable_confetti")
+  socialProofEnabled    Boolean @default(true) @map("social_proof_enabled")
+  socialProofInterval   Int     @default(30) @map("social_proof_interval")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("site_config")
+}
+
+// ============================================================
+// ORDERS
+// ============================================================
+
+model Order {
+  id                String        @id @default(uuid())
+  orderNumber       String        @unique @map("order_number")
+  userId            String?       @map("user_id")
+  status            OrderStatus   @default(pending_payment)
+  totalAmount       Decimal       @map("total_amount") @db.Decimal(10, 2)
+  discountAmount    Decimal       @default(0.00) @map("discount_amount") @db.Decimal(10, 2)
+  finalAmount       Decimal       @map("final_amount") @db.Decimal(10, 2)
+  deliveryType      DeliveryType  @map("delivery_type")
+  address           Json?         // Address object
+  contact           Json          // Contact object
+  paymentMethod     PaymentMethod @map("payment_method")
+  paymentStatus     PaymentStatus @default(pending) @map("payment_status")
+  paymentUrl        String?       @map("payment_url")
+  notes             String?
+  tip               Decimal?      @db.Decimal(10, 2)
+  appliedPromos     Json?         @map("applied_promos") // Array of applied promo IDs
+  estimatedTime     DateTime?     @map("estimated_time")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  user     User?             @relation(fields: [userId], references: [id])
+  items    OrderItem[]
+  history  OrderStatusHistory[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  @map("order_id")
+  productId String  @map("product_id")
+  variantId String? @map("variant_id")
+  quantity  Int
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
+  notes     String?
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  addons  OrderItemAddon[]
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderItemAddon {
+  id           String  @id @default(uuid())
+  orderItemId  String  @map("order_item_id")
+  addonId      String  @map("addon_id")
+  quantity     Int
+  price        Decimal @db.Decimal(10, 2)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+  @@map("order_item_addons")
+}
+
+model OrderStatusHistory {
+  id        String    @id @default(uuid())
+  orderId   String    @map("order_id")
+  status    OrderStatus
+  note      String?
+  changedBy String?   @map("changed_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_status_history")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  guest
+  customer
+  kitchen
+  driver
+  admin
+}
+
+enum OrderStatus {
+  pending_payment
+  paid
+  confirmed
+  preparing
+  ready_for_pickup
+  out_for_delivery
+  delivered
+  cancelled
+}
+
+enum DeliveryType {
+  delivery
+  pickup
+}
+
+enum PaymentMethod {
+  card
+  blik
+  cash_on_delivery
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  completed
+  failed
+  refunded
+}
+
+enum UpsellType {
+  cross_sell
+  bundle
+  last_minute
+  threshold
+}
+
+enum DiscountType {
+  percent
+  fixed
+}
+
+enum PromoType {
+  discount
+  free_delivery
+  addon_deal
+}
+
+enum BadgeType {
+  bestseller
+  new
+  chef_choice
+  limited
+}

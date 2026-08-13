@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ros-postgres
+    environment:
+      POSTGRES_USER: ros_user
+      POSTGRES_PASSWORD: ros_password
+      POSTGRES_DB: restaurant_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - ros-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros_user -d restaurant_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ros-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ros-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: ros-api
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://ros_user:ros_password@postgres:5432/restaurant_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+    volumes:
+      - ../../apps/api:/app
+      - /app/node_modules
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ros-net
+    command: pnpm start:dev
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: ros-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:4001
+    volumes:
+      - ../../apps/web:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - ros-net
+    command: pnpm dev
+
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.dashboard
+    container_name: ros-dashboard
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:4001
+    volumes:
+      - ../../apps/dashboard:/app
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+    networks:
+      - ros-net
+    command: pnpm dev
+
+  printer-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.printer
+    container_name: ros-printer
+    privileged: true
+    volumes:
+      - /dev/usb:/dev/usb
+      - ../../apps/printer-service:/app
+      - /app/node_modules
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PRINTER_TYPE=escpos
+      - PRINTER_INTERFACE=usb
+    depends_on:
+      - redis
+    networks:
+      - ros-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ros-net:
+    driver: bridge

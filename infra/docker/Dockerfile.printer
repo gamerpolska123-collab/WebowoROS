@@ -1,0 +1,12 @@
+FROM node:20-alpine
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/printer-service/package.json ./apps/printer-service/
+COPY packages ./packages
+RUN pnpm install --frozen-lockfile
+COPY apps/printer-service ./apps/printer-service
+RUN pnpm --filter printer-service build
+EXPOSE 5000
+CMD ["node", "apps/printer-service/dist/index.js"]
