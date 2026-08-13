@@ -140,4 +140,77 @@ export class AdminService {
       totalCustomers,
     };
   }
+
+
+  // ============================================================
+  // ORDERS (admin + kitchen + driver)
+  // ============================================================
+  async getOrders() {
+    return this.prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: {
+          include: {
+            product: { select: { name: true, imageUrl: true } },
+            addons: true,
+          },
+        },
+        user: { select: { firstName: true, lastName: true, phone: true } },
+        history: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+  }
+
+  async updateOrderStatus(id: string, status: string, note?: string) {
+    const order = await this.prisma.order.update({
+      where: { id },
+      data: {
+        status: status as any,
+        history: {
+          create: {
+            status: status as any,
+            note: note || `Status changed to ${status}`,
+          },
+        },
+      },
+      include: {
+        items: { include: { product: true } },
+        history: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+    return order;
+  }
+
+  // ============================================================
+  // STATS
+  // ============================================================
+  async getStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalOrders,
+      todayOrders,
+      totalRevenue,
+      todayRevenue,
+      pendingOrders,
+      preparingOrders,
+    ] = await Promise.all([
+      this.prisma.order.count(),
+      this.prisma.order.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.order.aggregate({ _sum: { finalAmount: true } }),
+      this.prisma.order.aggregate({ where: { createdAt: { gte: today } }, _sum: { finalAmount: true } }),
+      this.prisma.order.count({ where: { status: { in: ['pending_payment', 'paid', 'confirmed'] } } }),
+      this.prisma.order.count({ where: { status: 'preparing' } }),
+    ]);
+
+    return {
+      totalOrders,
+      todayOrders,
+      totalRevenue: Number(totalRevenue._sum.finalAmount || 0),
+      todayRevenue: Number(todayRevenue._sum.finalAmount || 0),
+      pendingOrders,
+      preparingOrders,
+    };
+  }
 }

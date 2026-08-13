@@ -9,4 +9,6 @@ RUN pnpm install --frozen-lockfile
 COPY apps/printer-service ./apps/printer-service
 RUN pnpm --filter printer-service build
 EXPOSE 5000
+ENV PORT=5000
+ENV HOSTNAME="0.0.0.0"
 CMD ["node", "apps/printer-service/dist/index.js"]

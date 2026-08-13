@@ -1,153 +1,129 @@
-# Setup — Instrukcja Instalacji
+# Setup — Pierwsze uruchomienie
 
-## 1. Wymagania
+## Wymagania
 
-- **Node.js** 20+ (LTS)
-- **pnpm** 8+ (zalecane) lub npm/yarn
-- **Docker** + Docker Compose
-- **Git**
+- Docker 24+ i Docker Compose
+- Node.js 20+ (tylko do development bez Docker)
+- pnpm 8+
+- Git
 
----
+## Szybki start (Docker — zalecane)
 
-## 2. Klonowanie repozytorium
-
-```bash
-git clone https://github.com/gamerpolska123-collab/WebowoROS
-cd restaurant-order-system
-```
-
----
-
-## 3. Instalacja zależności
+### 1. Klonowanie
 
 ```bash
-pnpm install
+git clone https://github.com/gamerpolska123-collab/WebowoROS.git
+cd WebowoROS
 ```
 
----
-
-## 4. Konfiguracja środowiska
-
-### 4.1 Plik .env
+### 2. Konfiguracja środowiska
 
 ```bash
 cp .env.example .env
+# Edytuj .env — ustaw JWT_SECRET, hasła, domenę
 ```
 
-Uzupełnij:
-```env
-# Baza danych
-DATABASE_URL=postgresql://ros_user:ros_password@localhost:5432/restaurant_db
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# JWT
-JWT_SECRET=your-super-secret-key-min-32-chars
-JWT_EXPIRES_IN=15m
-REFRESH_TOKEN_EXPIRES_IN=7d
-
-# Stripe (test)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-# PayU (test)
-PAYU_CLIENT_ID=...
-PAYU_CLIENT_SECRET=...
-
-# Drukarki
-PRINTER_TYPE=escpos
-PRINTER_INTERFACE=usb
-
-# Aplikacja
-NEXT_PUBLIC_API_URL=http://localhost:4000
-NEXT_PUBLIC_WS_URL=ws://localhost:4001
-```
-
-### 4.2 Baza danych (Docker)
+### 3. Uruchomienie (dev)
 
 ```bash
-docker-compose -f infra/docker/docker-compose.yml up -d postgres redis
+cd infra/docker
+docker-compose up -d
+```
+
+### 4. Inicjalizacja bazy
+
+```bash
+docker exec -it ros-api npx prisma migrate dev --name init
+docker exec -it ros-api npx prisma db seed
+```
+
+### 5. Dostęp
+
+| Serwis | URL |
+|--------|-----|
+| Strona klienta | http://localhost:3000 |
+| Panel admina | http://localhost:3001 |
+| API | http://localhost:4000/v1 |
+| WebSocket | ws://localhost:4001 |
+
+---
+
+## Deployment produkcyjny (single host)
+
+```bash
+cd infra/docker
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ---
 
-## 5. Migracje i seedery
+## Deployment produkcyjny (multi-host, Docker Swarm)
+
+### Inicjalizacja klastra
+
+**Manager (serwer główny):**
+```bash
+docker swarm init --advertise-addr <IP_MANAGERA>
+```
+
+**Worker 1 (frontend — web + redis):**
+```bash
+docker swarm join --token <TOKEN> <IP_MANAGERA>:2377
+```
+
+**Worker 2 (data — postgres + printer):**
+```bash
+docker swarm join --token <TOKEN> <IP_MANAGERA>:2377
+```
+
+### Etykietowanie
 
 ```bash
-cd apps/api
-pnpm prisma migrate dev
-pnpm prisma db seed
+docker node ls  # zobacz ID nodów
+
+docker node update --label-add tier=manager <ID_MANAGERA>
+docker node update --label-add tier=frontend <ID_WORKER_1>
+docker node update --label-add tier=data <ID_WORKER_2>
+```
+
+### Deploy stacku
+
+```bash
+cd infra/docker
+docker stack deploy -c docker-compose.swarm.yml weboworos
+```
+
+### Sprawdzenie statusu
+
+```bash
+docker service ls
+docker service ps weboworos_api
+docker service logs weboworos_api --tail 50 -f
 ```
 
 ---
 
-## 6. Uruchomienie (development)
+## Development bez Docker (niezalecane)
 
 ```bash
-# W root projektu
+pnpm install
+pnpm --filter api prisma generate
+pnpm --filter api prisma migrate dev
+pnpm --filter api prisma db seed
 pnpm dev
 ```
 
-To uruchomi wszystkie aplikacje równolegle (Turborepo):
-- Web: http://localhost:3000
-- Dashboard: http://localhost:3001
-- API: http://localhost:4000
-- WebSocket: http://localhost:4001
-
 ---
 
-## 7. Uruchomienie pojedynczych aplikacji
+## Struktura plików .env
 
-```bash
-# Tylko API
-pnpm --filter api dev
-
-# Tylko web
-pnpm --filter web dev
-
-# Tylko dashboard
-pnpm --filter dashboard dev
+```
+WebowoROS/
+├── .env                    # Root (Docker Compose)
+├── apps/api/.env           # API (JWT, DB, Redis)
+├── apps/web/.env           # Web (NEXT_PUBLIC_API_URL)
+├── apps/dashboard/.env     # Dashboard (NEXT_PUBLIC_API_URL)
+└── apps/printer-service/.env  # Printer (REDIS_URL)
 ```
 
----
-
-## 8. Testy
-
-```bash
-# Wszystkie testy
-pnpm test
-
-# Tylko API
-pnpm --filter api test
-
-# Tylko web
-pnpm --filter web test
-
-# E2E (Playwright)
-cd apps/web && pnpm test:e2e
-```
-
----
-
-## 9. Lint i formatowanie
-
-```bash
-pnpm lint
-pnpm format
-```
-
----
-
-## 10. Produkcja (lokalny build)
-
-```bash
-pnpm build
-```
-
-Sprawdź czy buildy nie zawierają błędów.
-
----
-
-*Setup v1.0 — 2026-08-12*
+**Ważne:** W Dockerze używaj nazw serwisów (`api:4000`, `postgres:5432`, `redis:6379`), NIE `localhost`.

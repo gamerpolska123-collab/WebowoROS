@@ -136,7 +136,8 @@ export class AuthService {
   }
 
   private async storeRefreshToken(userId: string, token: string) {
-    const expiresInDays = parseInt(process.env.REFRESH_TOKEN_EXPIRES_IN || '7d', 10) || 7;
+    const raw = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+    const expiresInDays = parseInt(raw.replace(/\D/g, ''), 10) || 7;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 

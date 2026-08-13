@@ -1,12 +1,14 @@
-import { Controller, Post, Body, Res, UsePipes, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Res, Req, UsePipes, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RegisterDtoSchema, LoginDtoSchema, RefreshTokenDtoSchema } from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private prisma: PrismaService) {}
 
   @Post('register')
   @UsePipes(new ZodValidationPipe(RegisterDtoSchema))
@@ -73,5 +75,16 @@ export class AuthController {
     res.clearCookie('refresh_token');
 
     return { message: 'Logout successful' };
+  }
+
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async me(@Req() req: any) {
+    const userId = req.user?.sub;
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, phone: true },
+    });
   }
 }

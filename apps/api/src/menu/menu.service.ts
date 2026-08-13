@@ -67,10 +67,22 @@ export class MenuService {
 
   async invalidateMenuCache() {
     await this.redis.del(MENU_CACHE_KEY);
-    // Also invalidate all product caches (simplification)
-    const keys = await this.redis.getClient().keys('product:*');
-    if (keys.length > 0) {
-      await this.redis.getClient().del(...keys);
+    // Use SCAN to avoid blocking Redis with KEYS command
+    const client = this.redis.getClient();
+    let cursor = '0';
+    const productKeys: string[] = [];
+    do {
+      const reply = await client.scan(cursor, 'MATCH', 'product:*', 'COUNT', 100);
+      cursor = reply[0];
+      productKeys.push(...reply[1]);
+    } while (cursor !== '0');
+
+    if (productKeys.length > 0) {
+      // Delete in batches of 100 to avoid too many arguments
+      for (let i = 0; i < productKeys.length; i += 100) {
+        const batch = productKeys.slice(i, i + 100);
+        await client.del(...batch);
+      }
     }
   }
 }

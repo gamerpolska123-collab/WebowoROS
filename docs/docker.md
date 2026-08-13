@@ -1,414 +1,185 @@
-# Docker & Konteneryzacja
+# Docker — Deployment Guide
 
-## 1. Filozofia
+## Architektura kontenerów
 
-Cały system działa w kontenerach Docker. Lokalnie używamy `docker-compose.yml`, na produkcji (Raspberry Pi 4) `docker-compose.prod.yml`. Wszystkie obrazy są multi-arch (AMD64 + ARM64) dzięki Docker Buildx.
+WebowoROS jest zbudowane jako zestaw niezależnych kontenerów Docker, gotowych do deployu na jednym hoście (dev/Raspberry Pi) lub rozproszonych na 2-3 serwery (Docker Swarm).
 
----
+### Serwisy
 
-## 2. Struktura kontenerów
+| Serwis | Port | Rola | Wymagania |
+|--------|------|------|-----------|
+| **nginx** | 80/443 | Reverse proxy, SSL, load balancing | Manager node |
+| **api** | 4000/4001 | NestJS backend + WebSocket | Manager node |
+| **web** | 3000 | Next.js — strona klienta | Frontend node |
+| **dashboard** | 3001 | Next.js — panel admina | Manager node |
+| **postgres** | 5432 | PostgreSQL 16 | Data node |
+| **redis** | 6379 | Redis 7 (cache + pub/sub) | Frontend node |
+| **printer-service** | 5000 | Drukarka ESC/POS | Data node |
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Docker Network: ros-net                                     │
-├─────────────────────────────────────────────────────────────┤
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐            │
-│ │   nginx     │ │    web      │ │  dashboard  │            │
-│ │  :80/443    │ │   :3000     │ │   :3001     │            │
-│ │(reverse     │ │  (Next.js)  │ │  (Next.js)  │            │
-│ │  proxy)     │ │             │ │             │            │
-│ └──────┬──────┘ └─────────────┘ └─────────────┘            │
-│        │                                                    │
-│ ┌──────┴──────────────────────────────────────────────┐    │
-│ │              api (NestJS) :4000                      │    │
-│ └──────┬──────────────────────────────────────────────┘    │
-│        │                                                    │
-│ ┌──────┴──────┐ ┌─────────────┐ ┌─────────────────┐       │
-│ │  postgres   │ │    redis    │ │ printer-service │       │
-│ │   :5432     │ │   :6379     │ │     :5000       │       │
-│ └─────────────┘ └─────────────┘ └─────────────────┘       │
-└─────────────────────────────────────────────────────────────┘
-```
+### Sieć
+
+Wszystkie serwisy komunikują się przez wewnętrzną sieć Docker:
+- **Dev/Prod**: `ros-net` (bridge)
+- **Swarm**: `ros-overlay` (overlay, attachable)
+
+Frontendy (web, dashboard) NIE używają `localhost` — używają nazw serwisów (`api:4000`, `redis:6379`).
 
 ---
 
-## 3. Pliki Docker
+## Tryby deployu
 
-### `infra/docker/docker-compose.yml` (Development)
-
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: ros-postgres
-    environment:
-      POSTGRES_USER: ros_user
-      POSTGRES_PASSWORD: ros_password
-      POSTGRES_DB: restaurant_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
-    networks:
-      - ros-net
-
-  redis:
-    image: redis:7-alpine
-    container_name: ros-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - ros-net
-
-  api:
-    build:
-      context: ../../
-      dockerfile: infra/docker/Dockerfile.api
-    container_name: ros-api
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://ros_user:ros_password@postgres:5432/restaurant_db
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-    volumes:
-      - ../../apps/api:/app
-      - /app/node_modules
-    ports:
-      - "4000:4000"
-      - "4001:4001"  # WebSocket
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - ros-net
-    command: pnpm start:dev
-
-  web:
-    build:
-      context: ../../
-      dockerfile: infra/docker/Dockerfile.web
-    container_name: ros-web
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:4000
-      - NEXT_PUBLIC_WS_URL=ws://localhost:4001
-    volumes:
-      - ../../apps/web:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
-    networks:
-      - ros-net
-    command: pnpm dev
-
-  dashboard:
-    build:
-      context: ../../
-      dockerfile: infra/docker/Dockerfile.dashboard
-    container_name: ros-dashboard
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:4000
-      - NEXT_PUBLIC_WS_URL=ws://localhost:4001
-    volumes:
-      - ../../apps/dashboard:/app
-      - /app/node_modules
-    ports:
-      - "3001:3001"
-    depends_on:
-      - api
-    networks:
-      - ros-net
-    command: pnpm dev
-
-  printer-service:
-    build:
-      context: ../../
-      dockerfile: infra/docker/Dockerfile.printer
-    container_name: ros-printer
-    privileged: true  # Dostęp do USB
-    volumes:
-      - /dev/usb:/dev/usb
-      - ../../apps/printer-service:/app
-      - /app/node_modules
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - PRINTER_TYPE=escpos
-      - PRINTER_INTERFACE=usb
-    depends_on:
-      - redis
-    networks:
-      - ros-net
-
-volumes:
-  postgres_data:
-  redis_data:
-
-networks:
-  ros-net:
-    driver: bridge
-```
-
-### `infra/docker/docker-compose.prod.yml` (Production / Raspberry Pi)
-
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./backups:/backups
-    networks:
-      - ros-net
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - ./data/redis:/data
-    networks:
-      - ros-net
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-
-  api:
-    image: ghcr.io/gamerpolska123-collab/webowo-rosapi:latest
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - PAYU_CLIENT_ID=${PAYU_CLIENT_ID}
-      - PAYU_CLIENT_SECRET=${PAYU_CLIENT_SECRET}
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - ros-net
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  web:
-    image: ghcr.io/gamerpolska123-collab/webowo-rosweb:latest
-    restart: unless-stopped
-    environment:
-      - NEXT_PUBLIC_API_URL=https://api.domena.pl
-      - NEXT_PUBLIC_WS_URL=wss://ws.domena.pl
-    networks:
-      - ros-net
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
-  dashboard:
-    image: ghcr.io/gamerpolska123-collab/webowo-rosdashboard:latest
-    restart: unless-stopped
-    environment:
-      - NEXT_PUBLIC_API_URL=https://api.domena.pl
-      - NEXT_PUBLIC_WS_URL=wss://ws.domena.pl
-    networks:
-      - ros-net
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
-  printer-service:
-    image: ghcr.io/gamerpolska123-collab/webowo-rosprinter:latest
-    restart: unless-stopped
-    privileged: true
-    volumes:
-      - /dev/usb:/dev/usb
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - NODE_ENV=production
-    depends_on:
-      - redis
-    networks:
-      - ros-net
-
-  nginx:
-    image: nginx:alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./nginx/www:/var/www/certbot:ro
-    depends_on:
-      - web
-      - dashboard
-      - api
-    networks:
-      - ros-net
-
-  watchtower:
-    image: containrrr/watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=3600
-      - WATCHTOWER_INCLUDE_RESTARTING=true
-
-networks:
-  ros-net:
-    driver: bridge
-```
-
----
-
-## 4. Dockerfile'y
-
-### `Dockerfile.api` (NestJS)
-
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/api/package.json ./apps/api/
-COPY packages ./packages
-RUN pnpm install --frozen-lockfile
-COPY apps/api ./apps/api
-RUN pnpm --filter api build
-
-FROM node:20-alpine AS runner
-WORKDIR /app
-RUN npm install -g pnpm
-ENV NODE_ENV=production
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-EXPOSE 4000 4001
-CMD ["node", "dist/main.js"]
-```
-
-### `Dockerfile.web` (Next.js)
-
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/web/package.json ./apps/web/
-COPY packages ./packages
-RUN pnpm install --frozen-lockfile
-COPY apps/web ./apps/web
-RUN pnpm --filter web build
-
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./.next/static
-COPY --from=builder /app/apps/web/public ./public
-EXPOSE 3000
-CMD ["node", "server.js"]
-```
-
-> **Uwaga**: Next.js wymaga `output: 'standalone'` w `next.config.js` dla optymalizacji obrazu.
-
-### `Dockerfile.printer` (Node.js + ESC/POS)
-
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-COPY . .
-EXPOSE 5000
-CMD ["node", "src/index.js"]
-```
-
----
-
-## 5. Build multi-arch (AMD64 + ARM64 dla Raspberry Pi)
+### 1. Development (Docker Desktop / lokalnie)
 
 ```bash
-docker buildx create --use --name ros-builder
-
-export REGISTRY=ghcr.io/org
-export TAG=latest
-
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.api -t $REGISTRY/ros-api:$TAG --push .
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.web -t $REGISTRY/ros-web:$TAG --push .
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.dashboard -t $REGISTRY/ros-dashboard:$TAG --push .
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/Dockerfile.printer -t $REGISTRY/ros-printer:$TAG --push .
+cd infra/docker
+docker-compose up -d
 ```
 
----
+Dostępne pod:
+- Web: http://localhost:3000
+- Dashboard: http://localhost:3001
+- API: http://localhost:4000/v1
+- WS: ws://localhost:4001
 
-## 6. Zarządzanie sekretami
+### 2. Production (single host, Raspberry Pi)
 
 ```bash
-# .env (na serwerze, chmod 600)
-DB_USER=ros_prod_user
-DB_PASSWORD=
-JWT_SECRET=
-STRIPE_SECRET_KEY=sk_live_...
-PAYU_CLIENT_ID=...
-PAYU_CLIENT_SECRET=...
+cd infra/docker
+cp .env.example .env
+# Edytuj .env — ustaw JWT_SECRET, DB_PASSWORD, DOMAIN
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
----
+### 3. Multi-host (Docker Swarm — 2-3 serwery)
 
-## 7. Komendy użytkowe
+#### Inicjalizacja klastra
+
+**Na managerze:**
+```bash
+docker swarm init --advertise-addr <MANAGER-IP>
+# Zapisz token dołączenia
+```
+
+**Na workerach (2-3 serwery):**
+```bash
+docker swarm join --token <TOKEN> <MANAGER-IP>:2377
+```
+
+#### Etykietowanie nodów
 
 ```bash
-# Start dev
-docker-compose -f infra/docker/docker-compose.yml up -d
+# Manager (nginx + api + dashboard)
+docker node update --label-add tier=manager <manager-id>
 
-# Start prod
-docker-compose -f infra/docker/docker-compose.prod.yml up -d
+# Worker-1 (web + redis)
+docker node update --label-add tier=frontend <worker-1-id>
 
-# Logi
-docker-compose logs -f api
-docker-compose logs -f printer-service
+# Worker-2 (postgres + printer)
+docker node update --label-add tier=data <worker-2-id>
+```
 
-# Backup bazy
-docker exec ros-postgres pg_dump -U ros_user restaurant_db > backup_$(date +%F).sql
+#### Deploy
 
-# Restore bazy
-docker exec -i ros-postgres psql -U ros_user restaurant_db < backup_2024-08-12.sql
+```bash
+cd infra/docker
+cp .env.example .env
+# Edytuj .env — ustaw wszystkie zmienne
 
-# Aktualizacja obrazów (prod)
-docker-compose -f infra/docker/docker-compose.prod.yml pull
-docker-compose -f infra/docker/docker-compose.prod.yml up -d
+docker stack deploy -c docker-compose.swarm.yml weboworos
+```
 
-# Przestrzeń dyskowa (Raspberry Pi)
-docker system prune -a --volumes
+#### Skalowanie API
+
+```bash
+# Zwiększ repliki API do 3
+docker service scale weboworos_api=3
+```
+
+#### Rolling update
+
+```bash
+# Nowa wersja obrazu — Swarm robi rolling update automatycznie
+docker service update --image ghcr.io/.../api:v1.2 weboworos_api
 ```
 
 ---
 
-*Docker v1.0 — 2026-08-12*
+## Zmienne środowiskowe
+
+### API (`apps/api/.env`)
+
+| Zmienna | Dev | Prod | Opis |
+|---------|-----|------|------|
+| `DATABASE_URL` | `postgresql://...` | `postgresql://...` | Połączenie z PostgreSQL |
+| `REDIS_URL` | `redis://redis:6379` | `redis://redis:6379` | Połączenie z Redis |
+| `JWT_SECRET` | `dev-secret` | **silne hasło** | Klucz JWT (min. 32 znaki) |
+| `CORS_ORIGINS` | `http://web:3000,...` | `https://domena.pl,...` | Dozwolone originy |
+| `STRIPE_SECRET_KEY` | — | `sk_live_...` | Klucz Stripe |
+
+### Web (`apps/web/.env`)
+
+| Zmienna | Dev | Prod |
+|---------|-----|------|
+| `NEXT_PUBLIC_API_URL` | `http://api:4000/v1` | `https://api.domena.pl/v1` |
+| `NEXT_PUBLIC_WS_URL` | `ws://api:4001` | `wss://ws.domena.pl` |
+
+### Dashboard (`apps/dashboard/.env`)
+
+| Zmienna | Dev | Prod |
+|---------|-----|------|
+| `NEXT_PUBLIC_API_URL` | `http://api:4000/v1` | `https://api.domena.pl/v1` |
+| `NEXT_PUBLIC_WS_URL` | `ws://api:4001` | `wss://ws.domena.pl` |
+
+---
+
+## Health Checks
+
+| Serwis | Endpoint | Interval |
+|--------|----------|----------|
+| API | `GET /v1/health` | 15s |
+| PostgreSQL | `pg_isready` | 10s |
+| Redis | `redis-cli ping` | 10s |
+
+---
+
+## SSL / Let's Encrypt
+
+### Opcja A: Certbot (Nginx)
+
+```bash
+docker run -it --rm   -v $(pwd)/infra/nginx/ssl:/etc/letsencrypt   -v $(pwd)/infra/nginx/www:/var/www/certbot   certbot/certbot certonly   --webroot -w /var/www/certbot   -d domena.pl -d www.domena.pl -d admin.domena.pl -d api.domena.pl -d ws.domena.pl
+```
+
+### Opcja B: Traefik (automatyczny)
+
+Zakomentuj `nginx` i odkomentuj `traefik` w `docker-compose.swarm.yml`.
+
+---
+
+## Backup bazy danych
+
+```bash
+# Automatyczny backup (cron)
+docker exec ros-postgres-prod pg_dump -U ros_user restaurant_db > backup_$(date +%F).sql
+```
+
+---
+
+## Troubleshooting
+
+### "CORS error" w przeglądarce
+- Sprawdź `CORS_ORIGINS` w API — musi zawierać domenę frontendu
+- W dev: `http://localhost:3000,http://web:3000`
+- W prod: `https://domena.pl,https://admin.domena.pl`
+
+### "Cannot connect to database"
+- Sprawdź czy `postgres` jest healthy: `docker-compose ps`
+- Sprawdź `DATABASE_URL` — musi używać nazwy serwisu `postgres`, nie `localhost`
+
+### WebSocket nie działa
+- Nginx musi mieć `proxy_set_header Upgrade $http_upgrade;`
+- Sprawdź czy `ws.domena.pl` wskazuje na serwer
+
+### "Module not found" po buildzie
+- W Dockerfile.web/dashboard: `output: 'standalone'` w `next.config.js`
+- W Dockerfile.api: `pnpm --filter api db:generate` przed buildem

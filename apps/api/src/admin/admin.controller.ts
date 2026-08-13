@@ -106,4 +106,27 @@ export class AdminController {
   async updateSiteConfig(@Param('id') id: string, @Body() data: any) {
     return this.adminService.updateSiteConfig(id, data);
   }
+
+  // Orders (admin + kitchen + driver)
+  @Get('orders')
+  @Roles(UserRole.admin, UserRole.kitchen, UserRole.driver)
+  async getOrders() {
+    return this.adminService.getOrders();
+  }
+
+  @Patch('orders/:id/status')
+  @Roles(UserRole.admin, UserRole.kitchen, UserRole.driver)
+  async updateOrderStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Body('note') note?: string,
+  ) {
+    return this.adminService.updateOrderStatus(id, status, note);
+  }
+
+  // Stats
+  @Get('stats')
+  async getStats() {
+    return this.adminService.getStats();
+  }
 }

@@ -1,183 +1,196 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { cn } from '../lib/utils';
-import { Button } from './button';
-
-interface SizeOption {
-  id: string;
-  name: string;
-  price: number;
-  diameter: number; // cm
-}
-
-interface CrustOption {
-  id: string;
-  name: string;
-  priceAdjustment: number;
-}
-
-interface Topping {
-  id: string;
-  name: string;
-  price: number;
-  icon: string;
-}
+import { useState } from "react";
+import Image from "next/image";
+import { useCart } from "@/lib/cart-context";
+import { Button, Badge, AddonConfigurator } from "@weboworos/ui";
+import { Plus, Minus, X } from "lucide-react";
 
 interface PizzaBuilderProps {
-  productName: string;
-  basePrice: number;
-  sizes: SizeOption[];
-  crusts: CrustOption[];
-  toppings: Topping[];
-  onAddToBag: (config: { sizeId: string; crustId: string; toppingIds: string[] }) => void;
-  className?: string;
+  product: any;
+  onAddToCart?: () => void;
 }
 
-export function PizzaBuilder({ productName, basePrice, sizes, crusts, toppings, onAddToBag, className }: PizzaBuilderProps) {
-  const [selectedSize, setSelectedSize] = React.useState(sizes[0]?.id || '');
-  const [selectedCrust, setSelectedCrust] = React.useState(crusts[0]?.id || '');
-  const [selectedToppings, setSelectedToppings] = React.useState<string[]>([]);
+export default function PizzaBuilder({ product, onAddToCart }: PizzaBuilderProps) {
+  const { addItem } = useCart();
+  const [selectedVariant, setSelectedVariant] = useState<any>(product.variants?.[0] || null);
+  const [selectedAddons, setSelectedAddons] = useState<{ addonId: string; quantity: number }[]>([]);
+  const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState("");
 
-  const toggleTopping = (id: string) => {
-    setSelectedToppings((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    );
+  const unitPrice = Number(product.basePrice) + (selectedVariant ? Number(selectedVariant.priceAdjustment) : 0);
+  const addonsTotal = selectedAddons.reduce((sum, a) => {
+    const addon = product.addons?.find((ad: any) => ad.id === a.addonId);
+    return sum + (addon ? Number(addon.price) * a.quantity : 0);
+  }, 0);
+  const itemTotal = (unitPrice + addonsTotal) * quantity;
+
+  const handleAddonToggle = (addonId: string) => {
+    setSelectedAddons((prev) => {
+      const exists = prev.find((a) => a.addonId === addonId);
+      if (exists) {
+        return prev.filter((a) => a.addonId !== addonId);
+      }
+      return [...prev, { addonId, quantity: 1 }];
+    });
   };
 
-  const size = sizes.find((s) => s.id === selectedSize);
-  const crust = crusts.find((c) => c.id === selectedCrust);
-  const toppingsPrice = selectedToppings.reduce((sum, tid) => {
-    const t = toppings.find((top) => top.id === tid);
-    return sum + (t?.price || 0);
-  }, 0);
-  const totalPrice = basePrice + (size?.price || 0) + (crust?.priceAdjustment || 0) + toppingsPrice;
+  const handleAddonQuantity = (addonId: string, qty: number) => {
+    if (qty <= 0) {
+      setSelectedAddons((prev) => prev.filter((a) => a.addonId !== addonId));
+      return;
+    }
+    setSelectedAddons((prev) => prev.map((a) => (a.addonId === addonId ? { ...a, quantity: qty } : a)));
+  };
 
-  // Pizza visualization scale based on size
-  const pizzaScale = size ? 0.8 + (size.diameter / 50) * 0.4 : 1;
+  const handleAdd = () => {
+    const addons = selectedAddons.map((a) => {
+      const addon = product.addons?.find((ad: any) => ad.id === a.addonId);
+      return {
+        addonId: a.addonId,
+        name: addon?.name || "Dodatek",
+        price: Number(addon?.price || 0),
+        quantity: a.quantity,
+      };
+    });
+
+    addItem({
+      productId: product.id,
+      name: product.name,
+      imageUrl: product.imageUrl,
+      variantId: selectedVariant?.id,
+      variantName: selectedVariant?.name,
+      addons,
+      quantity,
+      unitPrice,
+      notes: notes || undefined,
+    });
+
+    onAddToCart?.();
+  };
 
   return (
-    <div className={cn('space-y-6', className)}>
-      <h3 className="text-lg font-semibold text-dark">🍕 Konfigurator — {productName}</h3>
-
-      {/* Pizza Visualization */}
-      <div className="flex justify-center py-4">
-        <div
-          className="relative rounded-full bg-gradient-to-br from-secondary to-primary flex items-center justify-center shadow-xl transition-all duration-500"
-          style={{
-            width: `${200 * pizzaScale}px`,
-            height: `${200 * pizzaScale}px`,
-            border: selectedCrust === 'thick' ? '12px solid #F4A261' : '4px solid #F4A261',
-          }}
-        >
-          <span className="text-6xl">🍕</span>
-          {/* Topping layers */}
-          {selectedToppings.map((tid, idx) => {
-            const t = toppings.find((top) => top.id === tid);
-            if (!t) return null;
-            const angle = (idx * 137.5 * Math.PI) / 180;
-            const radius = 30 + (idx % 3) * 20;
-            return (
-              <div
-                key={tid}
-                className="absolute text-2xl animate-bounceIn"
-                style={{
-                  top: `calc(50% + ${Math.sin(angle) * radius}px)`,
-                  left: `calc(50% + ${Math.cos(angle) * radius}px)`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              >
-                {t.icon}
-              </div>
-            );
-          })}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start gap-4">
+        {product.imageUrl && (
+          <div className="w-24 h-24 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
+            <Image src={product.imageUrl} alt={product.name} width={96} height={96} className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="flex-1">
+          <h2 className="text-xl font-bold text-neutral-900">{product.name}</h2>
+          <p className="text-sm text-neutral-500 mt-1">{product.description}</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {product.badges?.map((badge: any) => (
+              <Badge key={badge.id} variant={badge.badgeType === "bestseller" ? "default" : "secondary"}>
+                {badge.badgeType}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Size Selection */}
-      <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Rozmiar</h4>
-        <div className="flex gap-2">
-          {sizes.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSelectedSize(s.id)}
-              className={cn(
-                'flex-1 rounded-lg border p-3 text-center transition-all',
-                selectedSize === s.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-gray-200 hover:border-gray-300'
-              )}
-            >
-              <p className="font-medium">{s.name}</p>
-              <p className="text-xs text-gray-500">{s.diameter} cm</p>
-              <p className="text-sm font-bold text-primary">{s.price.toFixed(2)} zł</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Crust Selection */}
-      <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Ciasto</h4>
-        <div className="flex gap-2">
-          {crusts.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCrust(c.id)}
-              className={cn(
-                'flex-1 rounded-lg border p-3 text-center transition-all',
-                selectedCrust === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-gray-200 hover:border-gray-300'
-              )}
-            >
-              <p className="font-medium">{c.name}</p>
-              <p className="text-sm text-gray-500">
-                {c.priceAdjustment > 0 ? `+${c.priceAdjustment.toFixed(2)} zł` : 'Standard'}
-              </p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Toppings */}
-      <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Dodatki</h4>
-        <div className="grid grid-cols-3 gap-2">
-          {toppings.map((t) => {
-            const selected = selectedToppings.includes(t.id);
-            return (
+      {/* Variants */}
+      {product.variants?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-700 mb-2">Wybierz wariant</h3>
+          <div className="flex flex-wrap gap-2">
+            {product.variants.map((variant: any) => (
               <button
-                key={t.id}
-                onClick={() => toggleTopping(t.id)}
-                className={cn(
-                  'rounded-lg border p-2 text-center transition-all',
-                  selected
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-gray-200 hover:border-gray-300'
-                )}
+                key={variant.id}
+                onClick={() => setSelectedVariant(variant)}
+                className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition ${
+                  selectedVariant?.id === variant.id
+                    ? "border-red-600 bg-red-50 text-red-700"
+                    : "border-neutral-200 text-neutral-700 hover:border-neutral-300"
+                }`}
               >
-                <span className="text-xl block">{t.icon}</span>
-                <span className="text-xs font-medium">{t.name}</span>
-                <span className="text-xs text-primary font-semibold block">+{t.price.toFixed(2)} zł</span>
+                {variant.name}
+                {Number(variant.priceAdjustment) > 0 && (
+                  <span className="ml-1 text-red-600">+{Number(variant.priceAdjustment).toFixed(2)} zł</span>
+                )}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Addons */}
+      {product.addons?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-700 mb-2">Dodatki</h3>
+          <div className="space-y-2">
+            {product.addons.map((addon: any) => {
+              const selected = selectedAddons.find((a) => a.addonId === addon.id);
+              return (
+                <div
+                  key={addon.id}
+                  className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition ${
+                    selected ? "border-red-600 bg-red-50" : "border-neutral-200 hover:border-neutral-300"
+                  }`}
+                  onClick={() => handleAddonToggle(addon.id)}
+                >
+                  <div>
+                    <p className="font-medium text-neutral-900">{addon.name}</p>
+                    <p className="text-sm text-red-600 font-semibold">+{Number(addon.price).toFixed(2)} zł</p>
+                  </div>
+                  {selected && (
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleAddonQuantity(addon.id, selected.quantity - 1)}
+                        className="w-7 h-7 rounded-full bg-white border border-neutral-200 flex items-center justify-center hover:bg-neutral-50"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-6 text-center text-sm font-semibold">{selected.quantity}</span>
+                      <button
+                        onClick={() => handleAddonQuantity(addon.id, selected.quantity + 1)}
+                        className="w-7 h-7 rounded-full bg-white border border-neutral-200 flex items-center justify-center hover:bg-neutral-50"
+                        disabled={selected.quantity >= addon.maxQuantity}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      <div>
+        <h3 className="text-sm font-semibold text-neutral-700 mb-2">Uwagi (opcjonalnie)</h3>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition resize-none text-sm"
+          placeholder="Np. bez pieczarek, cienkie ciasto..."
+        />
       </div>
 
-      {/* Price & CTA */}
-      <div className="border-t pt-4">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-gray-600">Twoja pizza:</span>
-          <span className="text-2xl font-bold text-primary tabular-nums">{totalPrice.toFixed(2)} zł</span>
+      {/* Quantity + Add */}
+      <div className="flex items-center gap-4 pt-4 border-t border-neutral-100">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <span className="w-8 text-center font-bold text-lg">{quantity}</span>
+          <button
+            onClick={() => setQuantity((q) => q + 1)}
+            className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-        <Button
-          className="w-full"
-          onClick={() => onAddToBag({ sizeId: selectedSize, crustId: selectedCrust, toppingIds: selectedToppings })}
-        >
-          🍕 Dodaj do torby
+        <Button onClick={handleAdd} className="flex-1 py-6 text-lg font-bold rounded-full">
+          Dodaj do torby — {itemTotal.toFixed(2)} zł
         </Button>
       </div>
     </div>

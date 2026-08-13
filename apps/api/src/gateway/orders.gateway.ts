@@ -8,13 +8,15 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://web:3000,http://dashboard:3001')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 @WebSocketGateway({
   namespace: '/',
   cors: {
-    origin: [
-      process.env.WEB_URL || 'http://localhost:3000',
-      process.env.DASHBOARD_URL || 'http://localhost:3001',
-    ],
+    origin: allowedOrigins,
     credentials: true,
   },
 })
@@ -59,7 +61,6 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('joined', { driverId, message: 'Subscribed to driver updates' });
   }
 
-  // Method to emit order status updates
   emitOrderStatus(orderId: string, status: string, data?: any) {
     this.server.to(`order:${orderId}`).emit('order_status_changed', {
       orderId,
@@ -69,12 +70,10 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  // Method to emit new orders to kitchen
   emitNewOrderToKitchen(orderData: any) {
     this.server.to('kitchen').emit('new_order', orderData);
   }
 
-  // Method to emit delivery assignment
   emitDeliveryAssignment(driverId: string, orderData: any) {
     this.server.to(`driver:${driverId}`).emit('delivery_assigned', orderData);
   }

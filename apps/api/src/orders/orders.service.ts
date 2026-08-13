@@ -104,7 +104,7 @@ export class OrdersService {
     const orderNumber = `ZAM-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
 
     // Calculate final amount (with tip)
-    const tip = dto.tip || 0;
+    const tip = Number(dto.tip || 0);
     const finalAmount = totalAmount + tip;
 
     // Create order
@@ -118,7 +118,7 @@ export class OrdersService {
         deliveryType: dto.deliveryType,
         address: dto.address || null,
         contact: dto.contact,
-        paymentMethod: dto.paymentMethod as any,
+        paymentMethod: dto.paymentMethod as PaymentMethod,
         paymentStatus: PaymentStatus.pending,
         notes: dto.notes,
         tip,

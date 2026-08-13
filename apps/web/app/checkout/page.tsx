@@ -1,139 +1,118 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { CheckoutTimeline, Button, Input, Card, CardContent, LastMinuteAddons } from '@ros/ui';
-
-const lastMinuteItems = [
-  { id: 'l1', name: 'Sos czosnkowy', price: 3.00, icon: '🧄' },
-  { id: 'l2', name: 'Oliwki', price: 2.00, icon: '🫒' },
-  { id: 'l3', name: 'Cola 0.5L', price: 3.50, icon: '🥤' },
-  { id: 'l4', name: 'Deser', price: 8.00, icon: '🍰' },
-];
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useCart } from "@/lib/cart-context";
+import { useCreateOrder } from "@/lib/hooks";
+import { CheckoutTimeline } from "@weboworos/ui";
+import { CheckCircle, MapPin, CreditCard } from "lucide-react";
+import { checkoutSchema, CheckoutForm } from "./checkout-schema";
+import OrderSummary from "./order-summary";
+import DeliveryForm from "./delivery-form";
+import PaymentForm from "./payment-form";
 
 export default function CheckoutPage() {
-  const [step, setStep] = useState(0);
-  const [bagTotal, setBagTotal] = useState(86);
+  const router = useRouter();
+  const { items, subtotal, freeDeliveryThreshold, clearCart } = useCart();
+  const { create, loading: creating, error: createError } = useCreateOrder();
+  const [step, setStep] = useState(1);
 
-  const addLastMinute = (id: string) => {
-    const item = lastMinuteItems.find((i) => i.id === id);
-    if (item) setBagTotal((prev) => prev + item.price);
+  const deliveryCost = subtotal >= freeDeliveryThreshold ? 0 : 9.99;
+  const total = subtotal + deliveryCost;
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutForm>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: { deliveryType: "delivery", paymentMethod: "online", tip: 0 },
+  });
+
+  const deliveryType = watch("deliveryType");
+  const paymentMethod = watch("paymentMethod");
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center">
+        <h1 className="text-2xl font-bold text-neutral-900 mb-4">Torba jest pusta</h1>
+        <p className="text-neutral-500 mb-6">Dodaj produkty przed przejściem do kasy.</p>
+        <Link href="/menu" className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition">Przeglądaj menu</Link>
+      </div>
+    );
+  }
+
+  const onSubmit = async (data: CheckoutForm) => {
+    try {
+      const order = await create({
+        items: items.map((i) => ({
+          productId: i.productId,
+          variantId: i.variantId,
+          quantity: i.quantity,
+          addons: i.addons.map((a) => ({ addonId: a.addonId, quantity: a.quantity })),
+          notes: i.notes,
+        })),
+        deliveryType: data.deliveryType,
+        address: data.deliveryType === "delivery" ? {
+          street: data.street!, buildingNumber: data.buildingNumber!,
+          apartmentNumber: data.apartmentNumber, city: data.city!,
+          postalCode: data.postalCode!, floor: data.floor, intercom: data.intercom,
+        } : undefined,
+        contact: { firstName: data.firstName, lastName: data.lastName, phone: data.phone, email: data.email },
+        paymentMethod: data.paymentMethod,
+        notes: data.notes,
+        tip: data.tip,
+      });
+      clearCart();
+      router.push(`/track/${order.id}`);
+    } catch {}
   };
 
+  const steps = [
+    { label: "Torba", icon: <CheckCircle className="w-4 h-4" /> },
+    { label: "Dane", icon: <MapPin className="w-4 h-4" /> },
+    { label: "Płatność", icon: <CreditCard className="w-4 h-4" /> },
+  ];
+
   return (
-    <main className="min-h-screen bg-light py-8 px-4">
-      <div className="mx-auto max-w-2xl">
-        <h1 className="font-poppins text-3xl font-bold text-dark mb-8 text-center">Zamówienie</h1>
+    <div className="min-h-screen bg-neutral-50">
+      <header className="bg-white border-b border-neutral-200">
+        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="text-2xl font-black text-red-600 tracking-tight">WebowoROS</Link>
+          <Link href="/bag" className="text-sm font-medium text-red-600 hover:underline">← Wróć do torby</Link>
+        </div>
+      </header>
 
-        <CheckoutTimeline currentStep={step} className="mb-10" />
-
-        {/* Step 1: Bag summary */}
-        {step === 0 && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-lg mb-4">🍕 Podsumowanie</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Margherita 40cm + Extra ser, Pieczarki</span>
-                    <span className="font-semibold">47.00 zł</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Capriciosa 40cm</span>
-                    <span className="font-semibold">39.00 zł</span>
-                  </div>
-                </div>
-                <div className="border-t mt-4 pt-4 flex justify-between text-xl font-bold">
-                  <span>Razem</span>
-                  <span className="text-primary">{bagTotal.toFixed(2)} zł</span>
-                </div>
-              </CardContent>
-            </Card>
-            <Button className="w-full" onClick={() => setStep(1)}>
-              Dalej → Dane dostawy
-            </Button>
+      <main className="max-w-3xl mx-auto px-4 py-8 pb-32">
+        <CheckoutTimeline steps={steps} currentStep={step} className="mb-8" />
+        {createError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+            <strong>Błąd:</strong> {createError}
           </div>
         )}
-
-        {/* Step 2: Delivery details + Last Minute Addons */}
-        {step === 1 && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-6 space-y-4">
-                <h3 className="font-semibold text-lg">📋 Dane dostawy</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="Imię" />
-                  <Input placeholder="Nazwisko" />
-                </div>
-                <Input placeholder="Telefon" type="tel" />
-                <Input placeholder="Email" type="email" />
-                <Input placeholder="Ulica" />
-                <div className="grid grid-cols-3 gap-4">
-                  <Input placeholder="Nr budynku" />
-                  <Input placeholder="Mieszkanie" />
-                  <Input placeholder="Kod pocztowy" />
-                </div>
-                <Input placeholder="Miasto" />
-                <textarea
-                  placeholder="Uwagi do zamówienia..."
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm min-h-[80px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Last Minute Addons — docs/ui-ux.md sekcja 3.4 */}
-            <Card>
-              <CardContent className="p-6">
-                <LastMinuteAddons items={lastMinuteItems} onAdd={addLastMinute} />
-              </CardContent>
-            </Card>
-
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setStep(0)}>
-                ← Wstecz
-              </Button>
-              <Button className="flex-1" onClick={() => setStep(2)}>
-                Dalej → Płatność
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Payment */}
-        {step === 2 && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-6 space-y-4">
-                <h3 className="font-semibold text-lg">💳 Płatność</h3>
-                <div className="space-y-3">
-                  {['Karta płatnicza (Stripe)', 'BLIK (PayU)', 'Gotówka przy odbiorze'].map((method) => (
-                    <label
-                      key={method}
-                      className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 cursor-pointer hover:border-primary transition-colors"
-                    >
-                      <input type="radio" name="payment" className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{method}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="border-t pt-4">
-                  <div className="flex justify-between text-xl font-bold">
-                    <span>Do zapłaty</span>
-                    <span className="text-primary">{bagTotal.toFixed(2)} zł</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-                ← Wstecz
-              </Button>
-              <Button className="flex-1 bg-accent hover:bg-accentLight">
-                Zamów i zapłać →
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {step === 1 && (
+            <OrderSummary items={items} subtotal={subtotal} freeDeliveryThreshold={freeDeliveryThreshold}
+              deliveryCost={deliveryCost} total={total} onNext={() => setStep(2)} />
+          )}
+          {step === 2 && (
+            <>
+              <DeliveryForm register={register} errors={errors} deliveryType={deliveryType} deliveryCost={deliveryCost} />
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setStep(1)} className="flex-1 px-6 py-4 bg-neutral-100 text-neutral-700 font-bold rounded-full hover:bg-neutral-200 transition">← Wstecz</button>
+                <button type="button" onClick={() => setStep(3)} className="flex-1 px-6 py-4 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition shadow-lg">Dalej: Płatność →</button>
+              </div>
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <PaymentForm register={register} errors={errors} paymentMethod={paymentMethod} total={total} creating={creating} />
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setStep(2)} className="flex-1 px-6 py-4 bg-neutral-100 text-neutral-700 font-bold rounded-full hover:bg-neutral-200 transition">← Wstecz</button>
+              </div>
+            </>
+          )}
+        </form>
+      </main>
+    </div>
   );
 }

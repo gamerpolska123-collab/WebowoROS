@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  transpilePackages: ['@ros/ui', '@ros/shared-types'],
   images: {
-    formats: ['image/webp', 'image/avif'],
+    domains: ['localhost', 'api.domena.pl', 'domena.pl'],
+  },
+  // Required for Docker: bind to all interfaces
+  experimental: {
+    // serverActions: true, // enabled by default in Next.js 14
   },
 };
 

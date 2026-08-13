@@ -10,7 +10,6 @@ services:
       POSTGRES_DB: restaurant_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     networks:
@@ -43,13 +42,15 @@ services:
     container_name: ros-api
     environment:
       - NODE_ENV=development
+      - PORT=4000
       - DATABASE_URL=postgresql://ros_user:ros_password@postgres:5432/restaurant_db
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://web:3000,http://dashboard:3001
     volumes:
-      - ../../apps/api:/app
+      - ../../apps/api:/app/apps/api
       - /app/node_modules
+      - /app/apps/api/node_modules
     ports:
       - "4000:4000"
       - "4001:4001"
@@ -60,7 +61,7 @@ services:
         condition: service_healthy
     networks:
       - ros-net
-    command: pnpm start:dev
+    command: pnpm --filter api start:dev
 
   web:
     build:
@@ -68,18 +69,19 @@ services:
       dockerfile: infra/docker/Dockerfile.web
     container_name: ros-web
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:4000
-      - NEXT_PUBLIC_WS_URL=ws://localhost:4001
+      - NEXT_PUBLIC_API_URL=http://api:4000/v1
+      - NEXT_PUBLIC_WS_URL=ws://api:4001
     volumes:
-      - ../../apps/web:/app
+      - ../../apps/web:/app/apps/web
       - /app/node_modules
+      - /app/apps/web/node_modules
     ports:
       - "3000:3000"
     depends_on:
       - api
     networks:
       - ros-net
-    command: pnpm dev
+    command: pnpm --filter web dev
 
   dashboard:
     build:
@@ -87,18 +89,19 @@ services:
       dockerfile: infra/docker/Dockerfile.dashboard
     container_name: ros-dashboard
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:4000
-      - NEXT_PUBLIC_WS_URL=ws://localhost:4001
+      - NEXT_PUBLIC_API_URL=http://api:4000/v1
+      - NEXT_PUBLIC_WS_URL=ws://api:4001
     volumes:
-      - ../../apps/dashboard:/app
+      - ../../apps/dashboard:/app/apps/dashboard
       - /app/node_modules
+      - /app/apps/dashboard/node_modules
     ports:
       - "3001:3001"
     depends_on:
       - api
     networks:
       - ros-net
-    command: pnpm dev
+    command: pnpm --filter dashboard dev
 
   printer-service:
     build:
@@ -108,8 +111,9 @@ services:
     privileged: true
     volumes:
       - /dev/usb:/dev/usb
-      - ../../apps/printer-service:/app
+      - ../../apps/printer-service:/app/apps/printer-service
       - /app/node_modules
+      - /app/apps/printer-service/node_modules
     environment:
       - REDIS_URL=redis://redis:6379
       - PRINTER_TYPE=escpos
@@ -118,6 +122,7 @@ services:
       - redis
     networks:
       - ros-net
+    command: pnpm --filter printer-service dev
 
 volumes:
   postgres_data:

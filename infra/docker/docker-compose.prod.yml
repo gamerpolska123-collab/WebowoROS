@@ -48,9 +48,11 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - PORT=4000
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=https://domena.pl,https://admin.domena.pl,https://www.domena.pl
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - PAYU_CLIENT_ID=${PAYU_CLIENT_ID}
       - PAYU_CLIENT_SECRET=${PAYU_CLIENT_SECRET}
@@ -71,7 +73,7 @@ services:
     container_name: ros-web-prod
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=https://api.domena.pl
+      - NEXT_PUBLIC_API_URL=https://api.domena.pl/v1
       - NEXT_PUBLIC_WS_URL=wss://ws.domena.pl
     networks:
       - ros-net
@@ -85,7 +87,7 @@ services:
     container_name: ros-dashboard-prod
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=https://api.domena.pl
+      - NEXT_PUBLIC_API_URL=https://api.domena.pl/v1
       - NEXT_PUBLIC_WS_URL=wss://ws.domena.pl
     networks:
       - ros-net
@@ -137,6 +139,8 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_POLL_INTERVAL=3600
       - WATCHTOWER_INCLUDE_RESTARTING=true
+    networks:
+      - ros-net
 
 networks:
   ros-net:

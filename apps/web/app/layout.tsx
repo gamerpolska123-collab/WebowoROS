@@ -1,17 +1,20 @@
-import type { Metadata } from 'next';
-import { Inter, Poppins } from 'next/font/google';
-import './globals.css';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { CartProvider } from "@/lib/cart-context";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const poppins = Poppins({
-  weight: ['400', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-poppins',
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Restaurant Order System',
-  description: 'Order your favorite food online',
+  title: "WebowoROS — Zamówienia Online",
+  description: "Szybkie zamówienia online z Twojej ulubionej pizzerii. Bez pośredników.",
+  manifest: "/manifest.json",
+  themeColor: "#E63946",
+  openGraph: {
+    title: "WebowoROS — Zamówienia Online",
+    description: "Szybkie zamówienia online z Twojej ulubionej pizzerii.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -21,8 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pl">
-      <body className={`${inter.variable} ${poppins.variable} font-inter bg-light text-dark`}>
-        {children}
+      <body className={inter.className}>
+        <CartProvider>
+          {children}
+        </CartProvider>
       </body>
     </html>
   );

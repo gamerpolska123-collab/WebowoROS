@@ -1,92 +1,183 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@ros/ui';
+"use client";
 
-const stats = [
-  { label: 'Dzisiejsze zamówienia', value: '24', change: '+12%', icon: '📦', color: 'text-primary' },
-  { label: 'Przychód dzisiaj', value: '1,247 zł', change: '+8%', icon: '💰', color: 'text-accent' },
-  { label: 'Średni czas dostawy', value: '32 min', change: '-5 min', icon: '🚚', color: 'text-secondary' },
-  { label: 'Aktywni klienci', value: '18', change: '+3', icon: '👥', color: 'text-gold' },
-];
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
+import { useOrders, useStats } from "@/lib/hooks";
+import { useEffect, useState } from "react";
+import { Package, ChefHat, DollarSign, TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react";
 
-const recentOrders = [
-  { id: '#1024', customer: 'Jan Kowalski', items: 'Margherita, Cola', total: '44.00 zł', status: 'W drodze', statusColor: 'text-accent' },
-  { id: '#1023', customer: 'Anna Nowak', items: 'Capriciosa x2', total: '78.00 zł', status: 'W przygotowaniu', statusColor: 'text-secondary' },
-  { id: '#1022', customer: 'Piotr Wiśniewski', items: 'Zestaw Rodzinny', total: '89.00 zł', status: 'Dostarczone', statusColor: 'text-gray-400' },
-];
+const statusColors: Record<string, string> = {
+  pending_payment: "bg-amber-100 text-amber-700",
+  paid: "bg-blue-100 text-blue-700",
+  confirmed: "bg-purple-100 text-purple-700",
+  preparing: "bg-orange-100 text-orange-700",
+  ready_for_pickup: "bg-cyan-100 text-cyan-700",
+  out_for_delivery: "bg-indigo-100 text-indigo-700",
+  delivered: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
 
-export default function DashboardHome() {
+const statusLabels: Record<string, string> = {
+  pending_payment: "Oczekuje płatności",
+  paid: "Opłacone",
+  confirmed: "Przyjęte",
+  preparing: "W przygotowaniu",
+  ready_for_pickup: "Gotowe",
+  out_for_delivery: "W drodze",
+  delivered: "Dostarczone",
+  cancelled: "Anulowane",
+};
+
+export default function DashboardHomePage() {
+  const { user, isAdmin, logout } = useAuth();
+  const { data: orders, loading: ordersLoading, refetch } = useOrders();
+  const { data: stats, loading: statsLoading } = useStats();
+  const [wsStatus, setWsStatus] = useState("connecting");
+
+  // WebSocket for real-time orders
+  useEffect(() => {
+    const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || "ws://api:4001").replace("http://", "ws://").replace("https://", "wss://");
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      setWsStatus("connected");
+      ws.send(JSON.stringify({ event: "join_kitchen" }));
+    };
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.event === "kitchen:new" || msg.event === "order_status_updated") {
+          refetch();
+        }
+      } catch {}
+    };
+    ws.onclose = () => setWsStatus("disconnected");
+    return () => ws.close();
+  }, [refetch]);
+
+  const recentOrders = orders?.slice(0, 5) || [];
+
+  const statCards = [
+    { label: "Dzisiejsze zamówienia", value: stats?.todayOrders ?? 0, icon: <Package className="w-5 h-5" />, color: "bg-blue-500" },
+    { label: "Przychód dzisiaj", value: `${(stats?.todayRevenue ?? 0).toFixed(2)} zł`, icon: <DollarSign className="w-5 h-5" />, color: "bg-green-500" },
+    { label: "W przygotowaniu", value: stats?.preparingOrders ?? 0, icon: <ChefHat className="w-5 h-5" />, color: "bg-orange-500" },
+    { label: "Oczekujące", value: stats?.pendingOrders ?? 0, icon: <Clock className="w-5 h-5" />, color: "bg-amber-500" },
+  ];
+
   return (
-    <div className="space-y-8">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">{stat.label}</p>
-                  <p className={`text-2xl font-bold mt-1 ${stat.color}`}>{stat.value}</p>
-                </div>
-                <span className="text-3xl">{stat.icon}</span>
-              </div>
-              <p className="text-xs text-gray-400 mt-3">{stat.change} vs wczoraj</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Recent Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📦 Ostatnie zamówienia</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">ID</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Klient</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Produkty</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Suma</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-500">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono text-gray-600">{order.id}</td>
-                    <td className="py-3 px-4 font-medium">{order.customer}</td>
-                    <td className="py-3 px-4 text-gray-500">{order.items}</td>
-                    <td className="py-3 px-4 font-semibold">{order.total}</td>
-                    <td className={`py-3 px-4 font-medium ${order.statusColor}`}>{order.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="min-h-screen bg-neutral-50">
+      {/* Sidebar + Content */}
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className="w-64 bg-neutral-900 text-white min-h-screen fixed left-0 top-0 flex flex-col">
+          <div className="p-6 border-b border-neutral-800">
+            <h1 className="text-xl font-black text-red-500 tracking-tight">WebowoROS</h1>
+            <p className="text-xs text-neutral-400 mt-1">Panel administracyjny</p>
           </div>
-        </CardContent>
-      </Card>
+          <nav className="flex-1 p-4 space-y-1">
+            <Link href="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-600/20 text-red-400 font-medium">
+              <TrendingUp className="w-5 h-5" /> Przegląd
+            </Link>
+            <Link href="/orders" className="flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-300 hover:bg-neutral-800 hover:text-white transition font-medium">
+              <Package className="w-5 h-5" /> Zamówienia
+            </Link>
+            <Link href="/kds" className="flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-300 hover:bg-neutral-800 hover:text-white transition font-medium">
+              <ChefHat className="w-5 h-5" /> KDS
+            </Link>
+            <Link href="/products" className="flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-300 hover:bg-neutral-800 hover:text-white transition font-medium">
+              <Package className="w-5 h-5" /> Produkty
+            </Link>
+          </nav>
+          <div className="p-4 border-t border-neutral-800">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-sm font-bold">
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </div>
+              <div className="text-sm">
+                <p className="font-medium text-white">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs text-neutral-400 capitalize">{user?.role}</p>
+              </div>
+            </div>
+            <button onClick={logout} className="w-full py-2 text-sm text-neutral-400 hover:text-white transition">
+              Wyloguj
+            </button>
+          </div>
+        </aside>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-primary text-white cursor-pointer hover:bg-primaryDark transition-colors">
-          <CardContent className="p-6 text-center">
-            <span className="text-4xl block mb-3">🍕</span>
-            <p className="font-semibold">Dodaj nowy produkt</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-accent text-white cursor-pointer hover:bg-accentLight transition-colors">
-          <CardContent className="p-6 text-center">
-            <span className="text-4xl block mb-3">📋</span>
-            <p className="font-semibold">Otwórz KDS</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gold text-white cursor-pointer hover:bg-goldLight transition-colors">
-          <CardContent className="p-6 text-center">
-            <span className="text-4xl block mb-3">📊</span>
-            <p className="font-semibold">Raporty sprzedaży</p>
-          </CardContent>
-        </Card>
+        {/* Main Content */}
+        <main className="ml-64 flex-1 p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-neutral-900">Przegląd</h2>
+              <p className="text-neutral-500">Witaj z powrotem, {user?.firstName}!</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${wsStatus === "connected" ? "bg-green-500" : "bg-amber-500"}`} />
+              <span className="text-xs text-neutral-400">
+                {wsStatus === "connected" ? "Online" : "Łączenie..."}
+              </span>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {statCards.map((card) => (
+              <div key={card.label} className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100">
+                <div className={`w-10 h-10 rounded-xl ${card.color} text-white flex items-center justify-center mb-3`}>
+                  {card.icon}
+                </div>
+                <p className="text-2xl font-black text-neutral-900">{card.value}</p>
+                <p className="text-sm text-neutral-500">{card.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent Orders */}
+          <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
+            <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-neutral-900">Ostatnie zamówienia</h3>
+              <Link href="/orders" className="text-sm font-medium text-red-600 hover:underline">
+                Zobacz wszystkie →
+              </Link>
+            </div>
+            {ordersLoading ? (
+              <div className="p-8 text-center text-neutral-400">Ładowanie zamówień...</div>
+            ) : recentOrders.length === 0 ? (
+              <div className="p-8 text-center text-neutral-400">Brak zamówień</div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-500 uppercase">Numer</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-500 uppercase">Klient</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-500 uppercase">Wartość</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-500 uppercase">Data</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {recentOrders.map((order: any) => (
+                    <tr key={order.id} className="hover:bg-neutral-50 transition">
+                      <td className="px-6 py-4 font-medium text-neutral-900">{order.orderNumber}</td>
+                      <td className="px-6 py-4 text-neutral-600">
+                        {order.user ? `${order.user.firstName} ${order.user.lastName}` : "Gość"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${statusColors[order.status] || "bg-neutral-100 text-neutral-600"}`}>
+                          {order.status === "delivered" ? <CheckCircle className="w-3 h-3" /> : order.status === "cancelled" ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {statusLabels[order.status] || order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-neutral-900">{Number(order.finalAmount).toFixed(2)} zł</td>
+                      <td className="px-6 py-4 text-sm text-neutral-500">
+                        {new Date(order.createdAt).toLocaleString("pl-PL")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );
