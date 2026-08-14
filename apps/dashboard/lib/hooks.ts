@@ -3,21 +3,52 @@
 import { useState, useEffect, useCallback } from "react";
 import { dashApi } from "./api";
 
-export function useOrders() {
-  const [data, setData] = useState<any[] | null>(null);
+export interface OrdersFilters {
+  status?: string;
+  deliveryType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+}
+
+export interface OrdersResult {
+  data: any[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function useOrders(initialFilters?: OrdersFilters) {
+  const [result, setResult] = useState<OrdersResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [filters, setFilters] = useState<OrdersFilters>(initialFilters || {});
 
   const fetch = useCallback(() => {
     setLoading(true);
-    dashApi.getOrders()
-      .then(setData)
+    dashApi.getOrders({ page, limit, ...filters })
+      .then(setResult)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, limit, filters]);
 
   useEffect(() => { fetch(); }, [fetch]);
-  return { data, loading, error, refetch: fetch };
+
+  return {
+    result,
+    loading,
+    error,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    filters,
+    setFilters,
+    refetch: fetch,
+  };
 }
 
 export function useProducts() {

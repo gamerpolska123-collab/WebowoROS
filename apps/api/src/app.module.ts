@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
+import { PaymentsModule } from './payments/payments.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -41,6 +42,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     AdminModule,
     GatewayModule,
     HealthModule,
+    PaymentsModule,
   ],
   providers: [
     JwtService,

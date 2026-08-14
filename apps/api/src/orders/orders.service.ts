@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
-import { OrderStatus, PaymentStatus, DeliveryType } from '@prisma/client';
+import { OrderStatus, PaymentStatus, PaymentMethod, DeliveryType } from '@prisma/client';
 
 interface CreateOrderItem {
   productId: string;
@@ -41,7 +41,16 @@ export class OrdersService {
     private redis: RedisService,
   ) {}
 
-  async createOrder(userId: string | null, dto: CreateOrderDto) {
+  async createOrder(userId: string | null, dto: CreateOrderDto, idempotencyKey?: string) {
+    // Idempotency check
+    if (idempotencyKey) {
+      const existing = await this.prisma.order.findFirst({
+        where: { idempotencyKey },
+        include: { items: { include: { product: true } } },
+      });
+      if (existing) return existing;
+    }
+
     // Validate products and calculate prices
     let totalAmount = 0;
     const orderItems = [];
@@ -247,7 +256,7 @@ export class OrdersService {
     });
 
     // Publish status update
-    await this.redis.publish(`order:${orderId}`, JSON.stringify({
+    await this.redis.publish('order:updates', JSON.stringify({
       orderId: updated.id,
       status: updated.status,
       timestamp: new Date().toISOString(),

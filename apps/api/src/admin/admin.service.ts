@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MenuService } from '../menu/menu.service';
 
@@ -12,6 +13,19 @@ export class AdminService {
   // ============================================================
   // PRODUCTS CRUD
   // ============================================================
+  async getProducts() {
+    return this.prisma.product.findMany({
+      where: { isDeleted: false },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        category: { select: { id: true, name: true } },
+        variants: true,
+        addons: true,
+        badges: true,
+      },
+    });
+  }
+
   async createProduct(data: any) {
     const product = await this.prisma.product.create({ data });
     await this.menuService.invalidateMenuCache();
@@ -35,6 +49,10 @@ export class AdminService {
   // ============================================================
   // CATEGORIES CRUD
   // ============================================================
+  async getCategories() {
+    return this.prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
+  }
+
   async createCategory(data: any) {
     const category = await this.prisma.category.create({ data });
     await this.menuService.invalidateMenuCache();
@@ -145,31 +163,96 @@ export class AdminService {
   // ============================================================
   // ORDERS (admin + kitchen + driver)
   // ============================================================
-  async getOrders() {
-    return this.prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        items: {
-          include: {
-            product: { select: { name: true, imageUrl: true } },
-            addons: true,
+  async getOrders(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    deliveryType?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (params.status) {
+      where.status = params.status;
+    }
+    if (params.deliveryType) {
+      where.deliveryType = params.deliveryType;
+    }
+    if (params.dateFrom || params.dateTo) {
+      where.createdAt = {};
+      if (params.dateFrom) where.createdAt.gte = new Date(params.dateFrom);
+      if (params.dateTo) where.createdAt.lte = new Date(params.dateTo);
+    }
+    if (params.search) {
+      where.OR = [
+        { orderNumber: { contains: params.search, mode: 'insensitive' } },
+        { contact: { path: ['phone'], string_contains: params.search } },
+        { contact: { path: ['firstName'], string_contains: params.search } },
+        { contact: { path: ['lastName'], string_contains: params.search } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          items: {
+            include: {
+              product: { select: { name: true, imageUrl: true } },
+              addons: true,
+            },
           },
+          user: { select: { firstName: true, lastName: true, phone: true } },
+          history: { orderBy: { createdAt: 'desc' }, take: 1 },
         },
-        user: { select: { firstName: true, lastName: true, phone: true } },
-        history: { orderBy: { createdAt: 'desc' }, take: 1 },
-      },
-    });
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async updateOrderStatus(id: string, status: string, note?: string) {
-    const order = await this.prisma.order.update({
+  async updateOrderStatus(id: string, newStatus: OrderStatus, note?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Walidacja maszyny stanów
+    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+      pending_payment: [OrderStatus.paid, OrderStatus.cancelled],
+      paid: [OrderStatus.confirmed, OrderStatus.cancelled],
+      confirmed: [OrderStatus.preparing, OrderStatus.cancelled],
+      preparing: [OrderStatus.ready_for_pickup, OrderStatus.cancelled],
+      ready_for_pickup: [OrderStatus.out_for_delivery, OrderStatus.delivered],
+      out_for_delivery: [OrderStatus.delivered, OrderStatus.cancelled],
+      delivered: [],
+      cancelled: [],
+    };
+
+    if (!validTransitions[order.status].includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${order.status} to ${newStatus}`
+      );
+    }
+
+    const updated = await this.prisma.order.update({
       where: { id },
       data: {
-        status: status as any,
+        status: newStatus,
         history: {
           create: {
-            status: status as any,
-            note: note || `Status changed to ${status}`,
+            status: newStatus,
+            note: note || `Status changed to ${newStatus}`,
           },
         },
       },
@@ -178,7 +261,24 @@ export class AdminService {
         history: { orderBy: { createdAt: 'desc' } },
       },
     });
-    return order;
+
+    // Publish do Redis
+    await this.redis.publish('order:updates', JSON.stringify({
+      orderId: updated.id,
+      status: updated.status,
+      timestamp: new Date().toISOString(),
+    }));
+
+    if (newStatus === OrderStatus.confirmed || newStatus === OrderStatus.preparing) {
+      await this.redis.publish('kitchen:new', JSON.stringify({
+        orderId: updated.id,
+        orderNumber: updated.orderNumber,
+        status: updated.status,
+        items: updated.items,
+      }));
+    }
+
+    return updated;
   }
 
   // ============================================================

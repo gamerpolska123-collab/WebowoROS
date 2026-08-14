@@ -1,5 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { UpdateOrderStatusSchema } from '../orders/order.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../common/guards/roles.guard';
 import { UserRole } from '@prisma/client';
@@ -17,6 +19,11 @@ export class AdminController {
   }
 
   // Products
+  @Get('products')
+  async getProducts() {
+    return this.adminService.getProducts();
+  }
+
   @Post('products')
   async createProduct(@Body() data: any) {
     return this.adminService.createProduct(data);
@@ -33,6 +40,11 @@ export class AdminController {
   }
 
   // Categories
+  @Get('categories')
+  async getCategories() {
+    return this.adminService.getCategories();
+  }
+
   @Post('categories')
   async createCategory(@Body() data: any) {
     return this.adminService.createCategory(data);
@@ -110,18 +122,26 @@ export class AdminController {
   // Orders (admin + kitchen + driver)
   @Get('orders')
   @Roles(UserRole.admin, UserRole.kitchen, UserRole.driver)
-  async getOrders() {
-    return this.adminService.getOrders();
+  async getOrders(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('status') status?: string,
+    @Query('deliveryType') deliveryType?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getOrders({ page, limit, status, deliveryType, dateFrom, dateTo, search });
   }
 
   @Patch('orders/:id/status')
   @Roles(UserRole.admin, UserRole.kitchen, UserRole.driver)
+  @UsePipes(new ZodValidationPipe(UpdateOrderStatusSchema))
   async updateOrderStatus(
     @Param('id') id: string,
-    @Body('status') status: string,
-    @Body('note') note?: string,
+    @Body() dto: { status: string; note?: string },
   ) {
-    return this.adminService.updateOrderStatus(id, status, note);
+    return this.adminService.updateOrderStatus(id, dto.status as any, dto.note);
   }
 
   // Stats

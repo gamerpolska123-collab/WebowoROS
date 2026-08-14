@@ -22,7 +22,18 @@ export const dashApi = {
   logout: () => fetchApi<{ message: string }>("/auth/logout", { method: "POST" }),
   me: () => fetchApi<{ id: string; email: string; firstName: string; lastName: string; role: string }>("/auth/me"),
 
-  getOrders: () => fetchApi<any[]>("/admin/orders"),
+  getOrders: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    deliveryType?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([,v]) => v !== undefined) as [string, string][]).toString() : '';
+    return fetchApi<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(`/admin/orders${qs}`);
+  },
   getOrder: (id: string) => fetchApi<any>(`/orders/${id}`),
   updateOrderStatus: (id: string, status: string, note?: string) =>
     fetchApi<any>(`/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, note }) }),
@@ -38,4 +49,9 @@ export const dashApi = {
   deleteCategory: (id: string) => fetchApi<any>(`/admin/categories/${id}`, { method: "DELETE" }),
 
   getStats: () => fetchApi<any>("/admin/stats"),
+
+  // Payments (symulator)
+  simulatePayment: (data: { orderId: string; success?: boolean; method?: 'card' | 'blik' | 'cash_on_delivery' }) =>
+    fetchApi<{ success: boolean; order: any; message: string }>("/payments/simulate", { method: "POST", body: JSON.stringify(data) }),
+  getPaymentStatus: (orderId: string) => fetchApi<any>(`/payments/${orderId}/status`),
 };

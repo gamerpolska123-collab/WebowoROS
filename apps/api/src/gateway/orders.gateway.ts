@@ -4,15 +4,18 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, Injectable } from '@nestjs/common';
+import { RedisService } from '../redis/redis.service';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://web:3000,http://dashboard:3001')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
 
+@Injectable()
 @WebSocketGateway({
   namespace: '/',
   cors: {
@@ -20,11 +23,53 @@ const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http:
     credentials: true,
   },
 })
-export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(OrdersGateway.name);
+
+  constructor(private redisService: RedisService) {}
+
+  afterInit() {
+    this.logger.log('WebSocket Gateway initialized');
+    this.subscribeToRedis();
+  }
+
+  private async subscribeToRedis() {
+    // Subskrypcja nowych zamówień
+    await this.redisService.subscribe('orders:new', (message) => {
+      try {
+        const data = JSON.parse(message);
+        this.server.to('kitchen').emit('orders:new', data);
+        this.logger.debug(`Emitted orders:new for order ${data.orderId}`);
+      } catch (e) {
+        this.logger.error('Failed to parse orders:new message', e);
+      }
+    });
+
+    // Subskrypcja aktualizacji statusu zamówień
+    await this.redisService.subscribe('order:updates', (message) => {
+      try {
+        const data = JSON.parse(message);
+        if (data.orderId) {
+          this.server.to(`order:${data.orderId}`).emit('order:updated', data);
+        }
+      } catch (e) {
+        this.logger.error('Failed to parse order update message', e);
+      }
+    });
+
+    // Subskrypcja kuchni
+    await this.redisService.subscribe('kitchen:new', (message) => {
+      try {
+        const data = JSON.parse(message);
+        this.server.to('kitchen').emit('kitchen:new', data);
+      } catch (e) {
+        this.logger.error('Failed to parse kitchen:new message', e);
+      }
+    });
+  }
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);

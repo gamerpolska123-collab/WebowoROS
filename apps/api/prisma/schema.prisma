@@ -224,6 +224,7 @@ model Order {
   paymentMethod     PaymentMethod @map("payment_method")
   paymentStatus     PaymentStatus @default(pending) @map("payment_status")
   paymentUrl        String?       @map("payment_url")
+  idempotencyKey    String?       @unique @map("idempotency_key")
   notes             String?
   tip               Decimal?      @db.Decimal(10, 2)
   appliedPromos     Json?         @map("applied_promos") // Array of applied promo IDs

@@ -45,16 +45,17 @@ export type CreateOrderDto = z.infer<typeof CreateOrderSchema>;
 
 export const UpdateOrderStatusSchema = z.object({
   status: z.enum([
-    'PENDING_PAYMENT',
-    'PAID',
-    'CONFIRMED',
-    'PREPARING',
-    'READY_FOR_PICKUP',
-    'OUT_FOR_DELIVERY',
-    'DELIVERED',
-    'CANCELLED',
+    'pending_payment',
+    'paid',
+    'confirmed',
+    'preparing',
+    'ready_for_pickup',
+    'out_for_delivery',
+    'delivered',
+    'cancelled',
   ]),
-  notes: z.string().max(200).optional(),
+  note: z.string().max(200).optional(),
 });
 
 export type UpdateOrderStatusDto = z.infer<typeof UpdateOrderStatusSchema>;
+
