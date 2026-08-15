@@ -1,9 +1,9 @@
 # 🤖 HANDOFF — Stan projektu WebowoROS
 
 > Ten plik czyta TYLKO AI. Zwięźle, bez marketingu.
-> Ostatnia aktualizacja: 2026-08-14 20:46
+> Ostatnia aktualizacja: 2026-08-15 01:37
 
-## Co zrobione (Etap 0-4 częściowo + P1 + Audyt)
+## Co zrobione (Etap 0-4 + P1 + Audyt + Etap A)
 
 ### ✅ Etap 0: Infrastruktura
 - Monorepo Turborepo + pnpm workspaces
@@ -12,7 +12,7 @@
 - Nginx: reverse proxy, SSL, WS proxy, rate limiting
 - Health checks: API, PostgreSQL, Redis
 - Env files: wszystkie aplikacje z Docker service names
-- **NOWE:** Redis persistencja (AOF) w docker-compose
+- Redis persistencja (AOF) w docker-compose
 
 ### ✅ Etap 1: Design System
 - Tokens: kolory, typografia, spacing, animacje
@@ -24,45 +24,101 @@
 - NestJS: Auth (JWT+refresh), RBAC (5 ról), CRUD, Redis cache, WebSocket, Zod validation
 - Endpoints: /auth, /menu, /products, /orders, /admin/*, /health, /payments/*
 - Testy E2E: auth, menu, orders
-- **NOWE:** Soft delete (Product.isDeleted), Idempotency key (Order.idempotencyKey)
-- **NOWE:** Walidacja status transition (orders + admin)
-- **NOWE:** Redis publish po zmianie statusu (WebSocket + printer)
-- **Naprawione błędy:** parseInt('7d'), paymentMethod as any, tip Decimal, KEYS → SCAN, UPPERCASE enumy, notes vs note
+- Soft delete (Product.isDeleted), Idempotency key (Order.idempotencyKey)
+- Walidacja status transition (orders + admin)
+- Redis publish po zmianie statusu (WebSocket + printer)
+- Naprawione błędy: parseInt('7d'), paymentMethod as any, tip Decimal, KEYS → SCAN, UPPERCASE enumy, notes vs note
 
 ### ✅ Etap 3: Frontend Web
-- **Gotowe:** layout, page, menu, bag, checkout (refactored na moduły), track
-- **PWA:** Service Worker (cache API, static assets, images, offline page)
-- **NOWE:** ErrorBoundary (error.tsx), Retry logic w checkout (useCreateOrder)
-- **Integracja z API:** useMenu, useProduct, useOrder, useCreateOrder hooks
-- **Cart context:** localStorage, dodawanie, usuwanie, ilość
-- **Checkout:** 3 kroki, Zod + React Hook Form, walidacja adresu
-- **Track:** timeline 7 statusów, WebSocket + fallback polling
-- **Brakuje:** Background sync (IndexedDB queue), push notifications
+- layout, page, menu, bag, checkout (refactored na moduły), track
+- PWA: Service Worker (cache API, static assets, images, offline page)
+- ErrorBoundary (error.tsx), Retry logic w checkout (useCreateOrder)
+- Integracja z API: useMenu, useProduct, useOrder, useCreateOrder hooks
+- Cart context: localStorage, dodawanie, usuwanie, ilość
+- Checkout: 3 kroki, Zod + React Hook Form, walidacja adresu
+- Track: timeline 7 statusów, WebSocket + fallback polling
+- Brakuje: Background sync (IndexedDB queue), push notifications
 
 ### ✅ Etap 4: Panel Admina (P0 GOTOWE)
-- **Auth Guard:** middleware JWT (`jose`) + client-side guard + strona `/forbidden`
-- **Login:** działa, redirect po zalogowaniu
-- **Home (stats + recent orders):** działa
-- **KDS (kanban):** działa
-- **Orders (`/orders`):** ✅ paginacja, filtry, akcje, modal szczegółów, WebSocket, symulator płatności, **optimistic updates**
-- **Products (`/products`):** ✅ grid, search, toggle, CRUD modal (Zod + RHF), soft delete
-- **Brakuje:** Zarządzanie wariantami i dodatkami produktu (TODO w modalu)
+- Auth Guard: middleware JWT (jose) + client-side guard + strona /forbidden
+- Login: działa, redirect po zalogowaniu
+- Home (stats + recent orders): działa
+- KDS (kanban): działa
+- Orders (/orders): paginacja, filtry, akcje, modal szczegółów, WebSocket, symulator płatności, optimistic updates
+- Products (/products): grid, search, toggle, CRUD modal (Zod + RHF), soft delete
+- Brakuje: Zarządzanie wariantami i dodatkami produktu (TODO w modalu)
 
 ### ✅ Etap 6: Printer Service (GOTOWE)
-- `escpos` + `escpos-usb` zainstalowane
-- Subskrypcja Redis: `orders:new`, `kitchen:new`
+- escpos + escpos-usb zainstalowane
+- Subskrypcja Redis: orders:new, kitchen:new
 - Formatowanie paragonu: nagłówek, produkty, ceny
 - Drukowanie przez USB/Serial z fallback do console.log
 - Graceful shutdown
 
 ### ✅ Symulator Płatności (GOTOWE)
-- `POST /v1/payments/simulate` — symuluje płatność
-- Przycisk w dashboard `/orders`
+- POST /v1/payments/simulate — symuluje płatność
+- Przycisk w dashboard /orders
 
-### ⚪ Etap 5, 7-8: Nie rozpoczęte
-- Etap 5: Dostawy + KDS (dla kierowców)
-- Etap 7: Płatności (Stripe/PayU) — ZOSTAWIONE NA PÓŹNIEJ
-- Etap 8: Deployment (CI/CD, monitoring)
+### ✅ PWA: Service Worker (GOTOWE)
+- Cache API, static assets, images, offline page
+
+### ✅ Etap B: API Documentation / Swagger (GOTOWE)
+
+#### B1. Swagger/OpenAPI Setup
+- `@nestjs/swagger ^7.4.0` dodane do zależności
+- `SwaggerModule` skonfigurowany w `main.ts` — endpoint `/v1/docs`
+- `DocumentBuilder` z title, description, version, BearerAuth, CookieAuth
+- `swaggerOptions`: persistAuthorization, tagsSorter, operationsSorter
+
+#### B2. Kontrolery ozdobione dekoratorami
+| Kontroler | Tag | Dekoratory |
+|-----------|-----|------------|
+| `auth.controller.ts` | `auth` | `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth`, `@ApiCookieAuth` |
+| `menu.controller.ts` | `menu` | `@ApiOperation`, `@ApiResponse` |
+| `orders.controller.ts` | `orders` | `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth`, `@ApiCookieAuth` |
+| `admin.controller.ts` | `admin` | `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth`, `@ApiCookieAuth`, `@ApiQuery` (filtry) |
+| `payments.controller.ts` | `payments` | `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth`, `@ApiCookieAuth`, `@ApiParam` |
+| `health.controller.ts` | `health` | `@ApiOperation`, `@ApiResponse` |
+
+#### B3. Klasy DTO z `@ApiProperty`
+- `auth/auth.dto.ts` — `RegisterDtoClass`, `LoginDtoClass`, `RefreshTokenDtoClass`, `CsrfResponseDto`, `AuthUserResponseDto`, `RegisterResponseDto`, `LoginResponseDto`, `MessageResponseDto`
+- `orders/order.dto.ts` — `CreateOrderDtoClass`, `UpdateOrderStatusDtoClass`, `AddressDto`, `ContactDto`, `OrderItemDto`, `OrderItemAddonDto`
+- `payments/payments.controller.ts` — `SimulatePaymentDtoClass`, `PaymentStatusResponseDto`, `SimulatePaymentResponseDto`
+- Zod schemas pozostają bez zmian (runtime validation)
+- Klasy Swagger są używane tylko do dokumentacji (type hints w `@ApiResponse`)
+
+- Cache API, static assets, images, offline page
+
+### ✅ Etap A: Security Hardening (GOTOWE)
+
+#### A1. Rate Limiting
+- ThrottlerGuard jako globalny APP_GUARD (przed JWT, CSRF, Roles)
+- Konfiguracja: 10 req/s (ttl: 1000ms) + 100 req/min (ttl: 60000ms)
+
+#### A2. CSRF Protection
+- Double-submit cookie pattern
+- Endpoint GET /v1/auth/csrf — generuje token, zapisuje w cookie (non-httpOnly)
+- CsrfGuard — weryfikuje X-CSRF-Token header vs csrf_token cookie na wszystkich mutujących requestach (POST/PATCH/PUT/DELETE)
+- Frontend (web + dashboard): fetchCsrfToken() przed mutującym requestem, dodaje X-CSRF-Token header
+- Logout czyści csrf_token cookie
+
+#### A3. Helmet Hardening
+- CSP (istniejące) + nowe: HSTS (maxAge: 1y, includeSubDomains, preload), X-Frame-Options: deny, X-Content-Type-Options, referrerPolicy: strict-origin-when-cross-origin
+
+#### A4. Brute Force Protection
+- Redis-based: key login_attempts:<ip>
+- Blokada po 5 nieudanych próbach (15 min TTL)
+- auth.service.login() przyjmuje IP, sprawdza attempts przed walidacją hasła
+- Nieudane próby: incr + expire, udane: del
+- Header X-RateLimit-Remaining w odpowiedzi na login
+- auth.controller: getClientIp() (X-Forwarded-For → req.ip)
+
+#### A5. Input Sanitization
+- Globalny SanitizationPipe (main.ts) — używa xss (filterXSS)
+- Strip all HTML tags, stripIgnoreTagBody: ['script']
+- Rekursywna sanitacja stringów w obiektach i tablicach
+- Globalny ValidationPipe (whitelist, forbidNonWhitelisted, transform)
+- Dodano zależność: xss ^1.0.15
 
 ## Architektura kontenerów (Docker)
 
@@ -100,76 +156,21 @@
 | `apps/api/prisma/schema.prisma` | 354 | Schema — OK |
 | `apps/api/src/admin/admin.service.ts` | 315 | Do rozdzielenia w przyszłości |
 
-## Nowe pliki (tej sesji audytu)
+## Nowe pliki (tej sesji)
 
-- `apps/dashboard/app/error.tsx` — ErrorBoundary
-- `apps/web/app/error.tsx` — ErrorBoundary
-- `apps/web/lib/use-create-order.ts` — Retry logic
-- `apps/api/src/payments/*` — Symulator płatności
-- `apps/web/public/sw.js` — Service Worker
+- `apps/api/src/common/pipes/sanitization.pipe.ts` — XSS sanitization pipe
+- `apps/api/src/common/guards/csrf.guard.ts` — CSRF double-submit cookie guard
 
-## Zmodyfikowane pliki (tej sesji audytu)
+## Zmodyfikowane pliki (tej sesji)
 
-- `apps/api/prisma/schema.prisma` — isDeleted (Product), idempotencyKey (Order)
-- `apps/api/src/admin/admin.service.ts` — soft delete, walidacja transition, Redis publish
-- `apps/api/src/admin/admin.controller.ts` — ParseIntPipe
-- `apps/api/src/orders/orders.service.ts` — idempotency key
-- `apps/api/src/orders/orders.controller.ts` — idempotency key header
-- `apps/api/src/products/products.service.ts` — filtr isDeleted
-- `apps/dashboard/app/orders/page.tsx` — optimistic updates
-- `infra/docker/docker-compose.yml` — Redis AOF persistencja
-
-## Naprawione błędy (audyt)
-
-### Krytyczne
-1. **Soft delete Product** — `deleteProduct` usuwał na stałe → teraz `isDeleted: true`
-2. **Walidacja status transition** — brak walidacji w admin → dodano `validTransitions`
-3. **Redis publish z admin** — zmiany statusu nie triggerowały WS/printer → dodano publish
-4. **ParseIntPipe** — `page`/`limit` jako string → teraz `ParseIntPipe + DefaultValuePipe`
-5. **Redis persistencja** — brak AOF → dodano `--appendonly yes` + volume
-6. **Idempotency key** — możliwe duplikaty zamówień → dodano `idempotencyKey` @unique
-7. **ErrorBoundary** — brak obsługi błędów → dodano `error.tsx` w web i dashboard
-8. **Retry logic** — brak retry w checkout → dodano `useCreateOrder` z exponential backoff
-9. **Optimistic updates** — UI czekał na API → dodano `optimisticOrders`
-
-## Znane braki / TODO (do rozłożenia na etapy)
-
-### 🔴 Etap A: Security Hardening (dużo pracy)
-- Rate limiting (`@nestjs/throttler`) — wszystkie kontrolery
-- CSRF protection — tokeny w formularzach
-- Helmet — security headers (CSP, HSTS, X-Frame-Options)
-- Brute force protection — Redis-based login attempt tracking
-- Input sanitization — XSS prevention
-- **Szacunek:** 4-6h
-
-### 🟡 Etap B: API Documentation (średnia praca)
-- Swagger/OpenAPI — `@ApiTags`, `@ApiOperation`, `@ApiResponse`
-- DTO schemas w Swagger
-- **Szacunek:** 2-3h
-
-### 🟡 Etap C: Upload obrazków (średnia praca)
-- Multer/S3/Cloudinary — upload zamiast URL
-- Image optimization (sharp) — webp, resize
-- CDN — CloudFront/Cloudflare
-- **Szacunek:** 3-4h
-
-### 🟢 Etap D: Monitoring & Analytics (dużo pracy)
-- Prometheus + Grafana — metrics, dashboards
-- Sentry — error tracking, source maps
-- Google Analytics / Plausible — web tracking
-- Health checks dashboard
-- **Szacunek:** 4-6h
-
-### 🟢 Etap E: PWA ulepszenia (średnia praca)
-- Background Sync — IndexedDB queue dla zamówień offline
-- Push notifications — Web Push API
-- Manifest.json — ikony, theme-color
-- **Szacunek:** 3-4h
-
-### 🟢 Etap F: Zarządzanie wariantami/dodatkami (mała praca)
-- Modal w products dla wariantów i dodatków
-- Backend: osobne endpointy lub rozszerzenie updateProduct
-- **Szacunek:** 2h
+- `apps/api/package.json` — dodano xss, naprawiono lint quotes
+- `apps/api/src/app.module.ts` — ThrottlerGuard + CsrfGuard jako APP_GUARD
+- `apps/api/src/main.ts` — Helmet hardened, global ValidationPipe + SanitizationPipe, CORS allowedHeaders + X-CSRF-Token
+- `apps/api/src/auth/auth.service.ts` — brute force protection (Redis-based)
+- `apps/api/src/auth/auth.controller.ts` — /csrf endpoint, IP tracking, X-RateLimit-Remaining header
+- `apps/api/src/redis/redis.service.ts` — dodano incr, expire, ttl
+- `apps/web/lib/api.ts` — fetchCsrfToken + X-CSRF-Token header na mutujących requestach
+- `apps/dashboard/lib/api.ts` — fetchCsrfToken + X-CSRF-Token header na mutujących requestach
 
 ## Komendy szybkiego startu
 

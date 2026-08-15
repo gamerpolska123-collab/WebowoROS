@@ -1,12 +1,42 @@
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
+import { ValidationPipe } from '@nestjs/common';
+import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Security headers (Helmet)
+  // Swagger/OpenAPI documentation
+  const config = new DocumentBuilder()
+    .setTitle('WebowoROS API')
+    .setDescription('Restaurant ordering system API')
+    .setVersion('1.0.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
+    .addCookieAuth('access_token', { type: 'apiKey', in: 'cookie' }, 'cookie-auth')
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('menu', 'Public menu endpoints')
+    .addTag('orders', 'Order management')
+    .addTag('admin', 'Admin dashboard endpoints')
+    .addTag('payments', 'Payment processing')
+    .addTag('health', 'Health checks')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+  });
+
+  // Security headers (Helmet) — hardened
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -20,12 +50,20 @@ async function bootstrap() {
       },
     },
     crossOriginEmbedderPolicy: false,
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    xFrameOptions: { action: 'deny' },
+    xContentTypeOptions: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
 
-  // Cookie parser (required for JWT HttpOnly cookies)
+  // Cookie parser
   app.use(cookieParser());
 
-  // CORS — dynamic based on env, supports Docker networks and multi-host
+  // CORS
   const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://web:3000,http://dashboard:3001')
     .split(',')
     .map(o => o.trim())
@@ -33,7 +71,6 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         callback(null, true);
@@ -43,8 +80,19 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
   });
+
+  // Global pipes
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: false },
+    }),
+    new SanitizationPipe(),
+  );
 
   // Global prefix
   app.setGlobalPrefix('v1');
@@ -52,6 +100,7 @@ async function bootstrap() {
   const port = process.env.PORT || 4000;
   await app.listen(port, '0.0.0.0');
   console.log(`API running on port ${port}`);
+  console.log(`Swagger docs: http://localhost:${port}/v1/docs`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 bootstrap();

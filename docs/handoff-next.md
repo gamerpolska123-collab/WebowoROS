@@ -1,7 +1,7 @@
 # 🎯 HANDOFF — Zadania dla kolejnej AI
 
 > Priorytetowana lista. Zacznij od góry.
-> Ostatnia aktualizacja: 2026-08-14 20:48
+> Ostatnia aktualizacja: 2026-08-15 12:06
 
 ## ✅ P0 — GOTOWE
 - Dashboard Auth Guard
@@ -10,53 +10,10 @@
 - Symulator płatności
 - Printer Service
 - PWA Service Worker
+- Etap A: Security Hardening — Rate limiting, CSRF, Helmet, Brute force, Input sanitization
+- Etap B: API Documentation — Swagger/OpenAPI na wszystkich kontrolerach + DTO classes
 
-## 🔴 Etap A: Security Hardening (PRIORYTET — dużo pracy)
-
-### A1. Rate Limiting
-**Pliki:** `apps/api/src/app.module.ts`, wszystkie kontrolery
-- Zainstaluj `@nestjs/throttler`
-- Dodaj `ThrottlerModule.forRoot()` w app.module
-- Dodaj `@UseGuards(ThrottlerGuard)` do wszystkich kontrolerów
-- Konfiguracja: 10 req/s na IP, 100 req/min na user
-
-### A2. CSRF Protection
-**Pliki:** `apps/api/src/main.ts`, `apps/web/lib/api.ts`, `apps/dashboard/lib/api.ts`
-- Zainstaluj `csurf`
-- Dodaj CSRF token do cookies
-- Dodaj `X-CSRF-Token` header do każdego POST/PATCH/DELETE
-
-### A3. Helmet
-**Pliki:** `apps/api/src/main.ts`
-- Zainstaluj `helmet`
-- Skonfiguruj CSP, HSTS, X-Frame-Options, X-Content-Type-Options
-
-### A4. Brute Force Protection
-**Pliki:** `apps/api/src/auth/auth.service.ts`, `apps/api/src/redis/redis.service.ts`
-- Trackuj próby logowania w Redis (key: `login_attempts:<ip>`)
-- Blokuj IP po 5 nieudanych próbach (15 min)
-- Dodaj `X-RateLimit-Remaining` header
-
-### A5. Input Sanitization
-**Pliki:** `apps/api/src/common/pipes/`, wszystkie DTO
-- Zainstaluj `dompurify` lub `xss`
-- Sanituj wszystkie string inputs
-- Waliduj JSON fields (address, contact)
-
-**Szacunek:** 4-6h
-
-## 🟡 Etap B: API Documentation
-
-### B1. Swagger/OpenAPI
-**Pliki:** Wszystkie kontrolery
-- Dodaj `@ApiTags('auth')`, `@ApiTags('orders')`, itp.
-- Dodaj `@ApiOperation({ summary: '...' })`
-- Dodaj `@ApiResponse({ status: 200, description: '...' })`
-- Skonfiguruj `SwaggerModule` w `main.ts`
-
-**Szacunek:** 2-3h
-
-## 🟡 Etap C: Upload obrazków
+## 🟡 Etap C: Upload obrazków (PRIORYTET — średnia praca)
 
 ### C1. Image Upload
 **Pliki:** `apps/api/src/admin/admin.controller.ts`, `apps/dashboard/app/products/`
@@ -73,7 +30,7 @@
 
 **Szacunek:** 3-4h
 
-## 🟢 Etap D: Monitoring & Analytics
+## 🟢 Etap D: Monitoring & Analytics (dużo pracy)
 
 ### D1. Prometheus + Grafana
 **Pliki:** `apps/api/src/metrics/`
@@ -95,7 +52,7 @@
 
 **Szacunek:** 4-6h
 
-## 🟢 Etap E: PWA ulepszenia
+## 🟢 Etap E: PWA ulepszenia (średnia praca)
 
 ### E1. Background Sync
 **Pliki:** `apps/web/public/sw.js`, `apps/web/lib/`
@@ -117,7 +74,7 @@
 
 **Szacunek:** 3-4h
 
-## 🟢 Etap F: Zarządzanie wariantami/dodatkami
+## 🟢 Etap F: Zarządzanie wariantami/dodatkami (mała praca)
 
 ### F1. Frontend
 **Pliki:** `apps/dashboard/app/products/components/`
@@ -146,6 +103,7 @@
 ### Redis
 - Cache: `redis.setex(key, 300, JSON.stringify(data))`
 - Pub/sub: `redis.publish('orders:new', JSON.stringify(order))`
+- Brute force: `redis.incr('login_attempts:<ip>')`, `redis.expire(key, 900)`
 
 ### WebSocket
 - Client: `socket.io-client`
@@ -155,6 +113,14 @@
 ### Auth
 - JWT w HttpOnly cookie
 - RBAC: `@Roles('admin')` + `RolesGuard`
+- CSRF: double-submit cookie, endpoint `/auth/csrf`, header `X-CSRF-Token`
+- Brute force: 5 prób / 15 min, key `login_attempts:<ip>`
+
+### Swagger
+- Dostępne pod: `http://api:4000/v1/docs`
+- BearerAuth + CookieAuth skonfigurowane
+- Wszystkie kontrolery ozdobione `@ApiTags`, `@ApiOperation`, `@ApiResponse`
+- DTO classes z `@ApiProperty` obok Zod schemas
 
 ### Typy
 - Prisma enumy lowercase: `pending_payment`, `paid`, itp.

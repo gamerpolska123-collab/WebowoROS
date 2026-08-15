@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -11,6 +11,9 @@ interface TokenPayload {
   email: string;
   role: UserRole;
 }
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_BLOCK_TTL_SECONDS = 15 * 60; // 15 minutes
 
 @Injectable()
 export class AuthService {
@@ -53,23 +56,37 @@ export class AuthService {
     return { user, message: 'Registration successful' };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ip: string) {
+    // Check brute force protection
+    const attempts = await this.getLoginAttempts(ip);
+    if (attempts >= MAX_LOGIN_ATTEMPTS) {
+      const ttl = await this.redis.ttl(`login_attempts:${ip}`);
+      throw new ForbiddenException(
+        `Too many failed login attempts. Try again in ${Math.ceil(ttl / 60)} minutes.`
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
     if (!user) {
+      await this.recordFailedAttempt(ip);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isValid) {
+      await this.recordFailedAttempt(ip);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.isActive) {
       throw new UnauthorizedException('Account deactivated');
     }
+
+    // Successful login — reset attempts
+    await this.resetLoginAttempts(ip);
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
@@ -117,6 +134,29 @@ export class AuthService {
     });
 
     return { message: 'Logout successful' };
+  }
+
+  // Brute force helpers
+  async getLoginAttempts(ip: string): Promise<number> {
+    const raw = await this.redis.get(`login_attempts:${ip}`);
+    return raw ? parseInt(raw, 10) : 0;
+  }
+
+  async getRemainingAttempts(ip: string): Promise<number> {
+    const attempts = await this.getLoginAttempts(ip);
+    return Math.max(0, MAX_LOGIN_ATTEMPTS - attempts);
+  }
+
+  private async recordFailedAttempt(ip: string): Promise<void> {
+    const key = `login_attempts:${ip}`;
+    const count = await this.redis.incr(key);
+    if (count === 1) {
+      await this.redis.expire(key, LOGIN_BLOCK_TTL_SECONDS);
+    }
+  }
+
+  private async resetLoginAttempts(ip: string): Promise<void> {
+    await this.redis.del(`login_attempts:${ip}`);
   }
 
   private async generateTokens(userId: string, email: string, role: UserRole) {

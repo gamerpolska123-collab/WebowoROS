@@ -2,11 +2,47 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://api:4000/v1";
 
+let csrfToken: string | null = null;
+
+async function fetchCsrfToken(): Promise<string | null> {
+  if (csrfToken) return csrfToken;
+  try {
+    const res = await fetch(`${API_URL}/auth/csrf`, {
+      credentials: "include",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      csrfToken = data.csrfToken || null;
+    }
+  } catch {
+    // ignore
+  }
+  return csrfToken;
+}
+
+function clearCsrfToken() {
+  csrfToken = null;
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_URL}${endpoint}`;
+
+  const isMutating = options?.method && !["GET", "HEAD", "OPTIONS"].includes(options.method);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...options?.headers as Record<string, string>,
+  };
+
+  if (isMutating) {
+    const token = await fetchCsrfToken();
+    if (token) {
+      headers["X-CSRF-Token"] = token;
+    }
+  }
+
   const res = await fetch(url, {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers,
     ...options,
   });
   if (!res.ok) {
@@ -19,7 +55,10 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 export const dashApi = {
   login: (data: { email: string; password: string }) =>
     fetchApi<{ user: any; accessToken: string }>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
-  logout: () => fetchApi<{ message: string }>("/auth/logout", { method: "POST" }),
+  logout: () => {
+    clearCsrfToken();
+    return fetchApi<{ message: string }>("/auth/logout", { method: "POST" });
+  },
   me: () => fetchApi<{ id: string; email: string; firstName: string; lastName: string; role: string }>("/auth/me"),
 
   getOrders: (params?: {

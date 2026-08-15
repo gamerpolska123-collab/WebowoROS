@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+// ─── Zod Schemas (runtime validation) ───
 
 export const RegisterDtoSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -22,3 +25,75 @@ export const RefreshTokenDtoSchema = z.object({
 });
 
 export type RefreshTokenDto = z.infer<typeof RefreshTokenDtoSchema>;
+
+// ─── Swagger DTO Classes (documentation only) ───
+
+export class RegisterDtoClass {
+  @ApiProperty({ example: 'user@example.com', description: 'User email address' })
+  email: string;
+
+  @ApiProperty({ example: '+48123456789', description: 'Phone number' })
+  phone: string;
+
+  @ApiProperty({ example: 'SecurePass123!', description: 'Password (min 8 chars)', minLength: 8 })
+  password: string;
+
+  @ApiProperty({ example: 'Jan', description: 'First name' })
+  firstName: string;
+
+  @ApiProperty({ example: 'Kowalski', description: 'Last name' })
+  lastName: string;
+}
+
+export class LoginDtoClass {
+  @ApiProperty({ example: 'user@example.com', description: 'User email address' })
+  email: string;
+
+  @ApiProperty({ example: 'SecurePass123!', description: 'Password' })
+  password: string;
+}
+
+export class RefreshTokenDtoClass {
+  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIs...', description: 'Refresh token' })
+  refreshToken: string;
+}
+
+export class CsrfResponseDto {
+  @ApiProperty({ example: 'a1b2c3d4e5f6...', description: 'CSRF token for state-changing requests' })
+  csrfToken: string;
+}
+
+export class AuthUserResponseDto {
+  @ApiProperty({ example: 'clz123abc' })
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com' })
+  email: string;
+
+  @ApiProperty({ example: 'Jan' })
+  firstName: string;
+
+  @ApiProperty({ example: 'Kowalski' })
+  lastName: string;
+
+  @ApiProperty({ example: 'customer', enum: ['customer', 'admin', 'kitchen', 'driver'] })
+  role: string;
+}
+
+export class RegisterResponseDto {
+  @ApiProperty({ type: AuthUserResponseDto })
+  user: AuthUserResponseDto;
+
+  @ApiProperty({ example: 'Registration successful' })
+  message: string;
+}
+
+export class LoginResponseDto {
+  @ApiProperty({ type: AuthUserResponseDto })
+  user: AuthUserResponseDto;
+}
+
+export class MessageResponseDto {
+  @ApiProperty({ example: 'Operation successful' })
+  message: string;
+}

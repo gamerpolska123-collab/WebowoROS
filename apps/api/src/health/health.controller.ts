@@ -1,7 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
+class HealthCheckDto {
+  status: string;
+  checks: Record<string, string>;
+  timestamp: string;
+}
+
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(
@@ -10,6 +18,8 @@ export class HealthController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Health check', description: 'Checks database and Redis connectivity' })
+  @ApiResponse({ status: 200, description: 'System health status', type: HealthCheckDto })
   async check() {
     const checks: Record<string, string> = {};
     let status = 'ok';
