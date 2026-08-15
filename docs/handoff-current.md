@@ -62,6 +62,81 @@
 ### ✅ PWA: Service Worker (GOTOWE)
 - Cache API, static assets, images, offline page
 
+### ✅ Skrypt startowy — `start.sh` (GOTOWE)
+
+- Interaktywny skrypt bash do bezpiecznego uruchamiania całego stacku
+- Sprawdza wymagane narzędzia (Docker, docker-compose, pnpm, Node.js)
+- Konfiguruje pliki `.env` dla API, web, dashboard (na podstawie pytań)
+- Generuje losowy `JWT_SECRET` (64 znaki) jeśli nie podany przez użytkownika
+- Obsługuje opcjonalne: SENTRY_DSN, Plausible domain, CORS origins
+- Instaluje zależności (`pnpm install`)
+- Generuje Prisma Client
+- Uruchamia Docker Compose (`infra/docker/docker-compose.yml`)
+- Czeka na gotowość: PostgreSQL, Redis, API (health check)
+- Wyświetla podsumowanie z URL-ami i przydatnymi komendami
+- Ustawia `chmod 600` na `.env` (API) dla bezpieczeństwa
+
+```bash
+./start.sh
+```
+
+### ✅ Etap D: Monitoring & Analytics (GOTOWE)
+
+#### D1. Prometheus + Grafana
+- `prom-client ^15.1.3` dodane do API
+- Nowy moduł: `metrics/metrics.module.ts` + `metrics.controller.ts` + `metrics.middleware.ts`
+- Endpoint: `GET /v1/metrics` — zwraca metryki w formacie Prometheus
+- Metryki zbierane:
+  - `http_requests_total` — licznik requestów (labels: method, route, status_code)
+  - `http_request_duration_seconds` — histogram czasu odpowiedzi (buckets: 5ms–10s)
+  - `http_errors_total` — licznik błędów HTTP (status >= 400)
+  - `db_query_duration_seconds` — histogram czasu zapytań DB (labels: operation, model)
+- `MetricsMiddleware` aplikowany globalnie na wszystkie route'y
+
+#### D2. Sentry
+- `@sentry/nestjs ^8.26.0` w API — init w `main.ts` (conditional na `SENTRY_DSN`)
+- `@sentry/nextjs ^8.26.0` w web i dashboard:
+  - `next.config.js` — `withSentryConfig` wrapper
+  - `instrumentation.ts` — server-side Sentry init
+  - `sentry.client.config.ts` — client-side init + session replay
+- Config: `tracesSampleRate` 0.1 w prod / 1.0 w dev, `replaysOnErrorSampleRate: 1.0`
+- Env vars: `SENTRY_DSN` (API), `NEXT_PUBLIC_SENTRY_DSN` (web/dashboard), `SENTRY_ORG`, `SENTRY_PROJECT_WEB`, `SENTRY_PROJECT_DASHBOARD`
+
+#### D3. Analytics (Plausible)
+- Plausible script dodany do `web/app/layout.tsx`
+- Konfigurowalne przez env:
+  - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` — domena do śledzenia
+  - `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL` — URL skryptu (default: plausible.io)
+- Privacy-friendly — brak cookies, GDPR-compliant
+
+### ✅ Etap C: Upload obrazków (GOTOWE)
+
+#### C1. Image Upload (Backend)
+- `multer ^1.4.5-lts.1` + `@types/multer` dodane do API
+- Nowy moduł: `upload/upload.module.ts` + `upload/upload.service.ts`
+- `UploadService` — obsługa multera (memoryStorage), walidacja typu (JPEG/PNG/WebP), max 5MB
+- `processAndSaveImage()` — generuje 3 warianty:
+  - Original: resize max 1200px, JPEG quality 85%
+  - Thumbnail: 300x300 cover, JPEG quality 80%
+  - WebP: resize max 800px, WebP quality 80%
+- Endpoint: `POST /v1/admin/products/:id/image` (admin only)
+- Po uploadzie aktualizuje `Product.imageUrl` w Prisma
+- `UploadModule` zarejestrowany w `app.module.ts`
+- Dodano `uuid ^10.0.0` + `@types/uuid`
+
+#### C2. Image Optimization (Frontend)
+- `sharp ^0.33.5` dodane do web i dashboard
+- `next.config.js` w web i dashboard:
+  - `remotePatterns` dla `/uploads/**` z API
+  - `formats: ['image/webp', 'image/avif']`
+  - `deviceSizes` i `imageSizes` dla responsywnych obrazków
+
+#### C3. Docker
+- Naprawiono błędy w `docker-compose.yml` (usunięto malformed `redis-data:` entries)
+- Dodano `uploads_data` volume współdzielony z API (`/app/uploads`)
+- Dodano `UPLOAD_BASE_URL=/uploads/products` env var
+- Dodano `redis-server --appendonly yes` do Redis
+
 ### ✅ Etap B: API Documentation / Swagger (GOTOWE)
 
 #### B1. Swagger/OpenAPI Setup

@@ -22,8 +22,20 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+  const plausibleScript = process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL || "https://plausible.io/js/script.js";
+
   return (
     <html lang="pl">
+      <head>
+        {plausibleDomain && (
+          <script
+            defer
+            data-domain={plausibleDomain}
+            src={plausibleScript}
+          />
+        )}
+      </head>
       <body className={inter.className}>
         <CartProvider>
           {children}

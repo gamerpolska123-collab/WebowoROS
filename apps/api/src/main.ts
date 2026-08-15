@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as Sentry from '@sentry/nestjs';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
@@ -7,6 +8,17 @@ import { ValidationPipe } from '@nestjs/common';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 
 async function bootstrap() {
+  // Initialize Sentry
+  const sentryDsn = process.env.SENTRY_DSN;
+  if (sentryDsn) {
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: process.env.NODE_ENV || 'development',
+      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+      profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    });
+  }
+
   const app = await NestFactory.create(AppModule);
 
   // Swagger/OpenAPI documentation
@@ -25,6 +37,7 @@ async function bootstrap() {
     .addTag('admin', 'Admin dashboard endpoints')
     .addTag('payments', 'Payment processing')
     .addTag('health', 'Health checks')
+    .addTag('metrics', 'Prometheus metrics')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -101,6 +114,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
   console.log(`API running on port ${port}`);
   console.log(`Swagger docs: http://localhost:${port}/v1/docs`);
+  console.log(`Prometheus metrics: http://localhost:${port}/v1/metrics`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 bootstrap();

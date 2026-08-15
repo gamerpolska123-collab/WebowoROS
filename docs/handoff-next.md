@@ -1,7 +1,7 @@
 # 🎯 HANDOFF — Zadania dla kolejnej AI
 
 > Priorytetowana lista. Zacznij od góry.
-> Ostatnia aktualizacja: 2026-08-15 12:06
+> Ostatnia aktualizacja: 2026-08-15 12:31
 
 ## ✅ P0 — GOTOWE
 - Dashboard Auth Guard
@@ -10,49 +10,13 @@
 - Symulator płatności
 - Printer Service
 - PWA Service Worker
-- Etap A: Security Hardening — Rate limiting, CSRF, Helmet, Brute force, Input sanitization
-- Etap B: API Documentation — Swagger/OpenAPI na wszystkich kontrolerach + DTO classes
+- Etap A: Security Hardening
+- Etap B: API Documentation / Swagger
+- Etap C: Upload obrazków
+- Etap D: Monitoring & Analytics — Prometheus, Sentry, Plausible
+- Skrypt startowy `start.sh` — interaktywna konfiguracja + bezpieczny start
 
-## 🟡 Etap C: Upload obrazków (PRIORYTET — średnia praca)
-
-### C1. Image Upload
-**Pliki:** `apps/api/src/admin/admin.controller.ts`, `apps/dashboard/app/products/`
-- Zainstaluj `@nestjs/platform-express` + `multer`
-- Endpoint `POST /admin/products/:id/image`
-- Upload do S3/Cloudinary lub lokalnie
-- **ALTERNATYWNIE:** Użyj pre-signed URLs do S3 (bezpieczniejsze)
-
-### C2. Image Optimization
-**Pliki:** `apps/web/next.config.js`
-- Zainstaluj `sharp`
-- Next.js Image component z `loader: 'custom'`
-- WebP conversion, responsive sizes
-
-**Szacunek:** 3-4h
-
-## 🟢 Etap D: Monitoring & Analytics (dużo pracy)
-
-### D1. Prometheus + Grafana
-**Pliki:** `apps/api/src/metrics/`
-- Zainstaluj `prom-client`
-- Metryki: request count, response time, error rate, DB query time
-- Endpoint `/metrics` dla Prometheus
-- Grafana dashboard JSON
-
-### D2. Sentry
-**Pliki:** `apps/web/`, `apps/dashboard/`, `apps/api/`
-- Zainstaluj `@sentry/nextjs`, `@sentry/nestjs`
-- Source maps upload
-- Error tracking, performance monitoring
-
-### D3. Analytics
-**Pliki:** `apps/web/app/layout.tsx`
-- Google Analytics 4 lub Plausible
-- Event tracking: add_to_cart, begin_checkout, purchase
-
-**Szacunek:** 4-6h
-
-## 🟢 Etap E: PWA ulepszenia (średnia praca)
+## 🟢 Etap E: PWA ulepszenia (PRIORYTET — średnia praca)
 
 ### E1. Background Sync
 **Pliki:** `apps/web/public/sw.js`, `apps/web/lib/`
@@ -95,6 +59,7 @@
 ### Docker
 - Nazwy serwisów: `api:4000`, `postgres:5432`, `redis:6379`
 - NIE `localhost`
+- Uploads volume: `uploads_data` → `/app/uploads` w API
 
 ### Prisma
 - `pnpm --filter api db:generate` po zmianie schema
@@ -119,8 +84,21 @@
 ### Swagger
 - Dostępne pod: `http://api:4000/v1/docs`
 - BearerAuth + CookieAuth skonfigurowane
-- Wszystkie kontrolery ozdobione `@ApiTags`, `@ApiOperation`, `@ApiResponse`
-- DTO classes z `@ApiProperty` obok Zod schemas
+
+### Upload obrazków
+- Endpoint: `POST /v1/admin/products/:id/image`
+- Akceptowane: JPEG, PNG, WebP (max 5MB)
+- Generowane warianty: original, thumbnail, WebP
+
+### Skrypt startowy
+- `./start.sh` — interaktywna konfiguracja + uruchomienie całego stacku
+- Sprawdza Docker, pnpm, Node.js
+- Generuje JWT_SECRET, tworzy .env, uruchamia docker-compose
+
+### Monitoring
+- Prometheus metrics: `GET /v1/metrics`
+- Sentry: API (`SENTRY_DSN`), web/dashboard (`NEXT_PUBLIC_SENTRY_DSN`)
+- Plausible: `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`
 
 ### Typy
 - Prisma enumy lowercase: `pending_payment`, `paid`, itp.

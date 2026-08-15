@@ -1,11 +1,31 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiCookieAuth, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
+import { UploadService } from '../upload/upload.service';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { UpdateOrderStatusSchema, UpdateOrderStatusDtoClass } from '../orders/order.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../common/guards/roles.guard';
 import { UserRole } from '@prisma/client';
+
+class UploadImageResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: '/uploads/products/prod_123_original.jpg' })
+  originalUrl: string;
+
+  @ApiProperty({ example: '/uploads/products/prod_123_thumb.jpg' })
+  thumbnailUrl: string;
+
+  @ApiProperty({ example: '/uploads/products/prod_123.webp' })
+  webpUrl: string;
+
+  @ApiProperty({ example: 'Image uploaded and optimized' })
+  message: string;
+}
 
 @ApiTags('admin')
 @Controller('admin')
@@ -14,7 +34,10 @@ import { UserRole } from '@prisma/client';
 @ApiBearerAuth('access-token')
 @ApiCookieAuth('cookie-auth')
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private uploadService: UploadService,
+  ) {}
 
   // Dashboard
   @Get('dashboard')
@@ -55,6 +78,43 @@ export class AdminController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   async deleteProduct(@Param('id') id: string) {
     return this.adminService.deleteProduct(id);
+  }
+
+  @Post('products/:id/image')
+  @ApiOperation({ summary: 'Upload product image', description: 'Uploads and optimizes product image (JPEG/PNG/WebP, max 5MB). Generates original, thumbnail (300x300), and WebP (800px) variants.' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Image uploaded and optimized', type: UploadImageResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid file type or size' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_req, file, callback) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+      if (allowed.includes(file.mimetype)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Invalid file type: ${file.mimetype}. Allowed: ${allowed.join(', ')}`), false);
+      }
+    },
+  }))
+  async uploadProductImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+
+    const urls = await this.uploadService.processAndSaveImage(file, id);
+
+    // Update product with image URL
+    await this.adminService.updateProduct(id, { imageUrl: urls.originalUrl });
+
+    return {
+      success: true,
+      ...urls,
+      message: 'Image uploaded and optimized',
+    };
   }
 
   // Categories

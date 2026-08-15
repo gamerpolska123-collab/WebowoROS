@@ -9,7 +9,6 @@ services:
       POSTGRES_PASSWORD: ros_password
       POSTGRES_DB: restaurant_db
     volumes:
-  redis-data:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -27,8 +26,8 @@ services:
     ports:
       - "6379:6379"
     volumes:
-  redis-data:
       - redis_data:/data
+    command: redis-server --appendonly yes
     networks:
       - ros-net
     healthcheck:
@@ -49,9 +48,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
       - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://web:3000,http://dashboard:3001
+      - UPLOAD_BASE_URL=/uploads/products
     volumes:
-  redis-data:
       - ../../apps/api:/app/apps/api
+      - uploads_data:/app/uploads
       - /app/node_modules
       - /app/apps/api/node_modules
     ports:
@@ -75,7 +75,6 @@ services:
       - NEXT_PUBLIC_API_URL=http://api:4000/v1
       - NEXT_PUBLIC_WS_URL=ws://api:4001
     volumes:
-  redis-data:
       - ../../apps/web:/app/apps/web
       - /app/node_modules
       - /app/apps/web/node_modules
@@ -96,7 +95,6 @@ services:
       - NEXT_PUBLIC_API_URL=http://api:4000/v1
       - NEXT_PUBLIC_WS_URL=ws://api:4001
     volumes:
-  redis-data:
       - ../../apps/dashboard:/app/apps/dashboard
       - /app/node_modules
       - /app/apps/dashboard/node_modules
@@ -115,7 +113,6 @@ services:
     container_name: ros-printer
     privileged: true
     volumes:
-  redis-data:
       - /dev/usb:/dev/usb
       - ../../apps/printer-service:/app/apps/printer-service
       - /app/node_modules
@@ -131,9 +128,9 @@ services:
     command: pnpm --filter printer-service dev
 
 volumes:
-  redis-data:
   postgres_data:
   redis_data:
+  uploads_data:
 
 networks:
   ros-net:

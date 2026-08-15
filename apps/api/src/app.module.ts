@@ -12,6 +12,8 @@ import { RedisModule } from './redis/redis.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
 import { PaymentsModule } from './payments/payments.module';
+import { UploadModule } from './upload/upload.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { CsrfGuard } from './common/guards/csrf.guard';
@@ -44,6 +46,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     GatewayModule,
     HealthModule,
     PaymentsModule,
+    UploadModule,
+    MetricsModule,
   ],
   providers: [
     JwtService,

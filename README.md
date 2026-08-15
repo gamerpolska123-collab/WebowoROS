@@ -108,34 +108,56 @@ restaurant-order-system/
 
 ---
 
-## 🚀 Quick Start (lokalnie)
+## 🚀 Quick Start (lokalnie) — `start.sh`
+
+Najprostszy sposób uruchomienia całego stacku:
 
 ```bash
 # 1. Klonowanie repozytorium
 git clone https://github.com/gamerpolska123-collab/WebowoROS
-cd restaurant-order-system
+cd WebowoROS
 
-# 2. Uruchomienie infrastruktury (baza, redis)
-docker-compose -f infra/docker/docker-compose.yml up -d postgres redis
-
-# 3. Instalacja zależności
-pnpm install
-
-# 4. Migracja bazy danych
-cd apps/api && pnpm migrate:dev
-
-# 5. Seed danych (przykładowe menu)
-pnpm seed
-
-# 6. Uruchomienie wszystkich aplikacji (development)
-pnpm dev
+# 2. Interaktywny start (konfiguracja + uruchomienie)
+./start.sh
 ```
+
+Skrypt `start.sh` automatycznie:
+- ✅ Sprawdzi wymagane narzędzia (Docker, pnpm, Node.js)
+- ✅ Zapyta o konfigurację (JWT_SECRET, CORS, Sentry, Plausible)
+- ✅ Wygeneruje bezpieczny `JWT_SECRET` (jeśli nie podasz własnego)
+- ✅ Utworzy pliki `.env` dla API, web i dashboard
+- ✅ Zainstaluje zależności (`pnpm install`)
+- ✅ Wygeneruje Prisma Client
+- ✅ Uruchomi Docker Compose z całym stackem
+- ✅ Poczeka na gotowość PostgreSQL, Redis i API
 
 Aplikacje dostępne pod:
 - **Strona klienta**: http://localhost:3000
 - **Dashboard**: http://localhost:3001
-- **API**: http://localhost:4000
-- **WebSocket**: http://localhost:4001
+- **API**: http://localhost:4000/v1
+- **Swagger Docs**: http://localhost:4000/v1/docs
+- **Prometheus Metrics**: http://localhost:4000/v1/metrics
+- **WebSocket**: ws://localhost:4001
+
+---
+
+### Ręczny start (alternatywnie)
+
+Jeśli wolisz kontrolować każdy krok:
+
+```bash
+# 1. Infrastruktura
+docker-compose -f infra/docker/docker-compose.yml up -d
+
+# 2. Zależności
+pnpm install
+
+# 3. Prisma
+cd apps/api && pnpm db:generate && pnpm migrate:dev && pnpm db:seed
+
+# 4. Dev serwery
+pnpm dev
+```
 
 ---
 

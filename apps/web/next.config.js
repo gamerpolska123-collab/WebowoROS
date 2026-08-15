@@ -1,13 +1,35 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
   images: {
     domains: ['localhost', 'api.domena.pl', 'domena.pl'],
-  },
-  // Required for Docker: bind to all interfaces
-  experimental: {
-    // serverActions: true, // enabled by default in Next.js 14
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'api',
+        port: '4000',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.domena.pl',
+        pathname: '/uploads/**',
+      },
+    ],
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT_WEB,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});
