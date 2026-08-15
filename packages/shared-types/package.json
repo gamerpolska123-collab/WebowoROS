@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@ros/config": "workspace:*",
+    "@ros/config": "*",
     "typescript": "^5.5.4"
   }
 }

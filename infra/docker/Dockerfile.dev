@@ -1,8 +1,8 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
-# Copy all package manifests for workspace install
+# Copy all package manifests
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
@@ -12,19 +12,11 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/ui/package.json ./packages/ui/
 
+# Install ALL dependencies inside the container
 RUN npm install
 
-COPY apps/api ./apps/api
-COPY packages ./packages
+# Generate Prisma client
 RUN npm run db:generate --workspace=@ros/api
-RUN npm run build --workspace=@ros/api
 
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/prisma ./prisma
-EXPOSE 4000 4001
-CMD ["node", "dist/main.js"]
+# Default command (overridden by docker-compose per service)
+CMD ["sh"]

@@ -1,14 +1,29 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY apps/dashboard/package.json ./apps/dashboard/
 COPY apps/printer-service/package.json ./apps/printer-service/
-COPY packages ./packages
-RUN pnpm install --frozen-lockfile
+COPY packages/config/package.json ./packages/config/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/ui/package.json ./packages/ui/
+
+RUN npm install
+
 COPY apps/printer-service ./apps/printer-service
-RUN pnpm --filter printer-service build
+COPY packages ./packages
+RUN npm run build --workspace=@ros/printer-service
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/apps/printer-service/dist ./dist
+COPY --from=builder /app/apps/printer-service/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
 EXPOSE 5000
 ENV PORT=5000
 ENV HOSTNAME="0.0.0.0"
-CMD ["node", "apps/printer-service/dist/index.js"]
+CMD ["node", "dist/index.js"]

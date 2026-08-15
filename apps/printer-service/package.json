@@ -11,13 +11,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ros/shared-types": "workspace:*",
+    "@ros/shared-types": "*",
     "ioredis": "^5.4.1",
     "escpos": "^3.0.0-alpha.6",
     "escpos-usb": "^3.0.0-alpha.4"
   },
   "devDependencies": {
-    "@ros/config": "workspace:*",
+    "@ros/config": "*",
     "@types/node": "^20.14.15",
     "tsx": "^4.17.0",
     "typescript": "^5.5.4"

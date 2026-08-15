@@ -1,12 +1,21 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN apk add --no-cache libc6-compat
+
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 COPY apps/dashboard/package.json ./apps/dashboard/
-COPY packages ./packages
-RUN pnpm install --frozen-lockfile
+COPY apps/printer-service/package.json ./apps/printer-service/
+COPY packages/config/package.json ./packages/config/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/ui/package.json ./packages/ui/
+
+RUN npm install
+
 COPY apps/dashboard ./apps/dashboard
-RUN pnpm --filter dashboard build
+COPY packages ./packages
+RUN npm run build --workspace=@ros/dashboard
 
 FROM node:20-alpine AS runner
 WORKDIR /app
