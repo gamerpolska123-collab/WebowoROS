@@ -1,112 +1,112 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, Badge } from '@ros/ui';
+import Link from "next/link";
+import { useOrders } from "@/lib/hooks";
+import { useAuth } from "@/lib/auth-context";
+import { Package, Clock, ChevronRight } from "lucide-react";
 
-const steps = [
-  { id: 'confirmed', label: 'Przyjęto', icon: '👨‍🍳', description: 'Zamówienie zostało przyjęte do realizacji' },
-  { id: 'preparing', label: 'W przygotowaniu', icon: '🔥', description: 'Kucharze przygotowują Twoje dania' },
-  { id: 'ready', label: 'Gotowe', icon: '📦', description: 'Zamówienie czeka na kierowcę' },
-  { id: 'out_for_delivery', label: 'W drodze', icon: '🛵', description: 'Kierowca jest w drodze do Ciebie' },
-  { id: 'delivered', label: 'Dostarczone', icon: '🏠', description: 'Smacznego!' },
-];
+const statusLabels: Record<string, string> = {
+  pending_payment: "Oczekuje płatności",
+  paid: "Opłacone",
+  confirmed: "Przyjęte",
+  preparing: "W przygotowaniu",
+  ready_for_pickup: "Gotowe",
+  out_for_delivery: "W drodze",
+  delivered: "Dostarczone",
+  cancelled: "Anulowane",
+};
 
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
-}
+const statusColors: Record<string, string> = {
+  pending_payment: "bg-amber-100 text-amber-700",
+  paid: "bg-blue-100 text-blue-700",
+  confirmed: "bg-purple-100 text-purple-700",
+  preparing: "bg-orange-100 text-orange-700",
+  ready_for_pickup: "bg-cyan-100 text-cyan-700",
+  out_for_delivery: "bg-indigo-100 text-indigo-700",
+  delivered: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
 
-export default function TrackPage({ params }: { params: { orderId: string } }) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [estimatedTime, setEstimatedTime] = useState('19:45');
+export default function TrackPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { data: orders, isLoading: ordersLoading } = useOrders();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
+  if (authLoading || ordersLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="animate-pulse text-red-600 font-bold">Ładowanie...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <Package className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
+          <h1 className="text-2xl font-bold text-neutral-900 mb-2">Zaloguj się, aby śledzić zamówienia</h1>
+          <p className="text-neutral-500 mb-6">Musisz być zalogowany, aby zobaczyć historię zamówień.</p>
+          <Link href="/login" className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition inline-block">
+            Zaloguj się
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-light py-8 px-4">
-      <div className="mx-auto max-w-2xl">
-        <div className="text-center mb-8">
-          <h1 className="font-poppins text-3xl font-bold text-dark">📍 Śledzenie zamówienia</h1>
-          <p className="text-gray-500 mt-2">Zamówienie #{params.orderId || 'ZAM-20240813-001'}</p>
+    <div className="min-h-screen bg-neutral-50">
+      <header className="bg-white border-b border-neutral-200">
+        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="text-2xl font-black text-red-600 tracking-tight">WebowoROS</Link>
+          <Link href="/" className="text-sm font-medium text-red-600 hover:underline">Wróć do strony głównej</Link>
         </div>
+      </header>
 
-        <div className="flex justify-center mb-8">
-          <Badge variant="secondary" className="text-lg px-4 py-2">
-            {steps[currentStep].icon} {steps[currentStep].label}
-          </Badge>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-neutral-900 mb-6">Twoje zamówienia</h1>
 
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="relative">
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200">
-                <div
-                  className="absolute top-0 left-0 w-full bg-accent transition-all duration-1000"
-                  style={{ height: `${(currentStep / (steps.length - 1)) * 100}%` }}
-                />
-              </div>
-              <div className="space-y-6">
-                {steps.map((step, idx) => {
-                  const isCompleted = idx <= currentStep;
-                  const isActive = idx === currentStep;
-                  return (
-                    <div key={step.id} className="flex items-start gap-4 relative">
-                      <div
-                        className={cn(
-                          'w-12 h-12 rounded-full flex items-center justify-center text-xl z-10 transition-all duration-500',
-                          isCompleted ? 'bg-accent text-white' : 'bg-gray-200 text-gray-400',
-                          isActive && 'ring-4 ring-accent/30 scale-110'
-                        )}
-                      >
-                        {isCompleted && idx < currentStep ? '✓' : step.icon}
-                      </div>
-                      <div className={cn('pt-1', !isCompleted && 'opacity-50')}>
-                        <h3 className={cn('font-semibold', isActive ? 'text-accent' : 'text-dark')}>
-                          {step.label}
-                        </h3>
-                        <p className="text-sm text-gray-500">{step.description}</p>
-                        {isActive && (
-                          <p className="text-sm text-primary mt-1 animate-pulse">
-                            ⏱️ Szacowany czas dostawy: {estimatedTime}
-                          </p>
-                        )}
-                      </div>
+        {!orders || orders.length === 0 ? (
+          <div className="text-center py-16">
+            <Package className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
+            <h2 className="text-xl font-bold text-neutral-900 mb-2">Brak zamówień</h2>
+            <p className="text-neutral-500 mb-6">Nie złożyłeś jeszcze żadnego zamówienia.</p>
+            <Link href="/menu" className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition inline-block">
+              Zamów teraz
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {orders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/track/${order.id}`}
+                className="block bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 hover:shadow-md transition"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-bold text-neutral-900">Zamówienie #{order.id.slice(-6).toUpperCase()}</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status] || "bg-neutral-100 text-neutral-700"}`}>
+                        {statusLabels[order.status] || order.status}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="font-semibold text-lg mb-4">🍕 Twoje zamówienie</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Margherita 40cm + Extra ser</span>
-                <span className="font-semibold">47.00 zł</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Capriciosa 40cm</span>
-                <span className="font-semibold">39.00 zł</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Dostawa</span>
-                <span className="text-accent font-semibold">DARMOWA 🔥</span>
-              </div>
-            </div>
-            <div className="border-t mt-4 pt-4 flex justify-between text-xl font-bold">
-              <span>Razem</span>
-              <span className="text-primary">86.00 zł</span>
-            </div>
-          </CardContent>
-        </Card>
+                    <div className="flex items-center gap-4 text-sm text-neutral-500">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {new Date(order.createdAt).toLocaleDateString('pl-PL')}
+                      </span>
+                      <span>{order.items?.length || 0} pozycji</span>
+                      <span className="font-medium text-neutral-900">{order.total?.toFixed(2)} zł</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-neutral-400" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }

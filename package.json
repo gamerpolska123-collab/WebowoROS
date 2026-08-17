@@ -1,11 +1,17 @@
 {
-  "name": "webowo-ros",
+  "name": "weboworos",
   "version": "1.0.0",
   "private": true,
-  "description": "Restaurant Order System - Monorepo",
+  "description": "Restaurant Order System — Monorepo",
+  "author": "WebowoROS Team",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -15,18 +21,16 @@
     "db:seed": "turbo run db:seed",
     "db:studio": "turbo run db:studio",
     "clean": "turbo run clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
     "turbo": "^2.0.0",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4"
   },
+  "packageManager": "npm@10.0.0",
   "engines": {
-    "node": ">=20.0.0"
-  },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ]
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
 }

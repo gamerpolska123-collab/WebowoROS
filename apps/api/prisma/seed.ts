@@ -266,7 +266,7 @@ async function main() {
   // ============================================================
   // 8. PRODUCTS — NAPOJE
   // ============================================================
-  const cola = await prisma.product.upsert({
+  const _cola = await prisma.product.upsert({
     where: { id: 'prod-cola-1l' },
     update: {},
     create: {
@@ -319,7 +319,7 @@ async function main() {
   // ============================================================
   // 9. PRODUCTS — DODATKI
   // ============================================================
-  const sosCzosnkowy = await prisma.product.upsert({
+  const _sosCzosnkowy = await prisma.product.upsert({
     where: { id: 'prod-sos-czosnkowy' },
     update: {},
     create: {

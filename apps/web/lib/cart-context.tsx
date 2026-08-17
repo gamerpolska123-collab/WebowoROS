@@ -1,81 +1,150 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { api } from './api';
+import { useAuth } from './auth-context';
 
 export interface CartItem {
-  id: string;
   productId: string;
   name: string;
   imageUrl?: string;
+  basePrice: number;
   variantId?: string;
   variantName?: string;
+  variantPriceAdjustment?: number;
   addons: { addonId: string; name: string; price: number; quantity: number }[];
   quantity: number;
-  unitPrice: number;
   notes?: string;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "id">) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
-  clearCart: () => void;
   totalItems: number;
   subtotal: number;
   freeDeliveryThreshold: number;
+  deliveryCost: number;
+  total: number;
+  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
+  removeItem: (index: number) => void;
+  updateQuantity: (index: number, quantity: number) => void;
+  clearCart: () => void;
+  isLoading: boolean;
 }
+
+const CART_STORAGE_KEY = 'weboworos_cart';
+const FREE_DELIVERY_THRESHOLD = 50;
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = "ros_cart";
-const FREE_DELIVERY_THRESHOLD = 60;
+function calculateTotals(items: CartItem[]) {
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => {
+    const variantPrice = item.variantPriceAdjustment || 0;
+    const addonsPrice = item.addons.reduce((a, addon) => a + addon.price * addon.quantity, 0);
+    const unitPrice = item.basePrice + variantPrice + addonsPrice;
+    return sum + unitPrice * item.quantity;
+  }, 0);
+  const deliveryCost = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : 9.99;
+  const total = subtotal + deliveryCost;
+  return { totalItems, subtotal, deliveryCost, total };
+}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem(CART_STORAGE_KEY);
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return [];
-  });
+  const { isAuthenticated } = useAuth();
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load cart from localStorage on mount
   useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    try {
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      if (stored) {
+        setItems(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Failed to load cart:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const addItem = useCallback((item: Omit<CartItem, "id">) => {
+  // Save to localStorage whenever items change
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    }
+  }, [items, isLoading]);
+
+  // Sync with API when user logs in
+  useEffect(() => {
+    if (isAuthenticated && items.length > 0) {
+      // Optionally sync cart to server
+      // api.post('/cart/sync', { items }).catch(console.error);
+    }
+  }, [isAuthenticated, items]);
+
+  const addItem = useCallback((newItem: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
     setItems((prev) => {
-      const id = `${item.productId}-${item.variantId || "default"}-${Date.now()}`;
-      return [...prev, { ...item, id }];
+      const quantity = newItem.quantity || 1;
+      const existingIndex = prev.findIndex(
+        (item) =>
+          item.productId === newItem.productId &&
+          item.variantId === newItem.variantId &&
+          JSON.stringify(item.addons.map((a) => a.addonId).sort()) ===
+            JSON.stringify(newItem.addons.map((a) => a.addonId).sort())
+      );
+
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + quantity,
+        };
+        return updated;
+      }
+
+      return [...prev, { ...newItem, quantity }];
     });
   }, []);
 
-  const removeItem = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeItem = useCallback((index: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const updateQuantity = useCallback((id: string, quantity: number) => {
+  const updateQuantity = useCallback((index: number, quantity: number) => {
     if (quantity <= 0) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
+      setItems((prev) => prev.filter((_, i) => i !== index));
       return;
     }
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity } : i)));
+    setItems((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], quantity };
+      return updated;
+    });
   }, []);
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => {
+    setItems([]);
+    localStorage.removeItem(CART_STORAGE_KEY);
+  }, []);
 
-  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = items.reduce((sum, i) => {
-    const addonsTotal = i.addons.reduce((a, add) => a + add.price * add.quantity, 0);
-    return sum + (i.unitPrice + addonsTotal) * i.quantity;
-  }, 0);
+  const totals = calculateTotals(items);
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, subtotal, freeDeliveryThreshold: FREE_DELIVERY_THRESHOLD }}
+      value={{
+        items,
+        totalItems: totals.totalItems,
+        subtotal: totals.subtotal,
+        freeDeliveryThreshold: FREE_DELIVERY_THRESHOLD,
+        deliveryCost: totals.deliveryCost,
+        total: totals.total,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        isLoading,
+      }}
     >
       {children}
     </CartContext.Provider>
@@ -83,7 +152,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useCart() {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used within CartProvider");
-  return ctx;
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within CartProvider');
+  }
+  return context;
 }

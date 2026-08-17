@@ -237,3 +237,52 @@ refactor(dashboard): extract OrderTable component
 ---
 
 *Ostatnia aktualizacja: 13.08.2026 — Etap 2 zakończony*
+
+
+## Etap 3 — Implementacja Frontend Web (2026-08-17)
+
+### Zaimplementowane komponenty
+
+**Core Infrastructure:**
+- `lib/api.ts` — Axios instance z interceptors (CSRF, 401 refresh, WebSocket URL)
+- `lib/query-client.ts` — TanStack Query client
+- `lib/auth-context.tsx` — Auth state (login, register, logout, /auth/me)
+- `lib/cart-context.tsx` — Cart (localStorage persistence, API sync, quantity management)
+- `lib/hooks.ts` — 10 React Query hooks
+
+**Strony:**
+- `app/page.tsx` — Strona główna (ISR-ready, real API data, skeleton loading)
+- `app/login/page.tsx` — Logowanie + rejestracja (toggle, validation, redirect)
+- `app/menu/page.tsx` — Pełne menu (category filter, product grid)
+- `app/bag/page.tsx` — Torba (items, quantity, FreeDeliveryProgress, summary)
+- `app/checkout/page.tsx` — 3-krokowy wizard (dane dostawy, płatność, podsumowanie)
+- `app/track/page.tsx` — Lista zamówień (auth guard, status labels)
+- `app/track/[orderId]/page.tsx` — Szczegóły zamówienia (timeline, WebSocket, cancel)
+- `app/privacy/page.tsx` — Polityka prywatności (RODO)
+- `app/terms/page.tsx` — Regulamin
+- `app/offline/page.tsx` — Strona offline (PWA)
+
+**PWA:**
+- `public/sw.js` — Service Worker (cache strategies, background sync)
+- `public/manifest.json` — PWA manifest
+
+**Testy:**
+- `__tests__/api.test.ts` — API client tests
+- `__tests__/cart-context.test.tsx` — 6 cart tests
+- `__tests__/auth-context.test.tsx` — 5 auth tests
+- `__tests__/hooks.test.ts` — 6 hook tests
+- `__tests__/checkout-integration.test.tsx` — Integration placeholder
+
+### Walidacja formularzy
+- Telefon: format +48 123 456 789
+- Email: standardowy regex
+- Kod pocztowy: format 00-000
+- Imię/Nazwisko: min. 2 znaki
+- Regulamin: wymagany checkbox
+
+### Bezpieczeństwo
+- IdempotencyKey (UUID v4) przy tworzeniu zamówienia
+- CSRF token w nagłówkach
+- HttpOnly cookies dla JWT
+- Walidacja uploadu (5MB, MIME, magic bytes)
+- Rate limiting na auth (5/min login, 3/min register)

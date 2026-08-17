@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /bag/
+Disallow: /checkout/
+Disallow: /track/
+
+Sitemap: https://domena.pl/sitemap.xml

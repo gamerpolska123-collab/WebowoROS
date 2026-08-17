@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, Res, Req, UsePipes, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiCookieAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';

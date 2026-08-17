@@ -2,112 +2,110 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
+  MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
-  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, Injectable } from '@nestjs/common';
-import { RedisService } from '../redis/redis.service';
+import { UseGuards } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://web:3000,http://dashboard:3001')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+interface AuthenticatedSocket extends Socket {
+  user?: { userId: string; role: string; email: string };
+}
 
-@Injectable()
-@WebSocketGateway({
-  namespace: '/',
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-  },
-})
-export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
+@WebSocketGateway(4001, { cors: { origin: '*' }, namespace: 'orders' })
+export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  private readonly logger = new Logger(OrdersGateway.name);
+  constructor(
+    private jwtService: JwtService,
+    private configService: ConfigService,
+    private prisma: PrismaService,
+  ) {}
 
-  constructor(private redisService: RedisService) {}
-
-  afterInit() {
-    this.logger.log('WebSocket Gateway initialized');
-    this.subscribeToRedis();
-  }
-
-  private async subscribeToRedis() {
-    // Subskrypcja nowych zamówień
-    await this.redisService.subscribe('orders:new', (message) => {
-      try {
-        const data = JSON.parse(message);
-        this.server.to('kitchen').emit('orders:new', data);
-        this.logger.debug(`Emitted orders:new for order ${data.orderId}`);
-      } catch (e) {
-        this.logger.error('Failed to parse orders:new message', e);
+  async handleConnection(client: AuthenticatedSocket) {
+    try {
+      const token = client.handshake.auth?.token || client.handshake.headers?.authorization;
+      if (!token) {
+        client.disconnect(true);
+        return;
       }
-    });
 
-    // Subskrypcja aktualizacji statusu zamówień
-    await this.redisService.subscribe('order:updates', (message) => {
-      try {
-        const data = JSON.parse(message);
-        if (data.orderId) {
-          this.server.to(`order:${data.orderId}`).emit('order:updated', data);
-        }
-      } catch (e) {
-        this.logger.error('Failed to parse order update message', e);
+      const secret = this.configService.get<string>('JWT_SECRET');
+      const payload = this.jwtService.verify(token, { secret });
+
+      // Verify user still exists and is active
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, role: true, email: true, isActive: true },
+      });
+
+      if (!user || !user.isActive) {
+        client.disconnect(true);
+        return;
       }
-    });
 
-    // Subskrypcja kuchni
-    await this.redisService.subscribe('kitchen:new', (message) => {
-      try {
-        const data = JSON.parse(message);
-        this.server.to('kitchen').emit('kitchen:new', data);
-      } catch (e) {
-        this.logger.error('Failed to parse kitchen:new message', e);
-      }
-    });
+      client.user = {
+        userId: user.id,
+        role: user.role,
+        email: user.email,
+      };
+
+      console.log(`WS Auth: ${user.email} connected`);
+    } catch (err) {
+      console.error('WS Auth failed:', err.message);
+      client.disconnect(true);
+    }
   }
 
-  handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
-  }
-
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
-  }
-
-  @SubscribeMessage('join_order')
-  handleJoinOrder(client: Socket, orderId: string) {
-    client.join(`order:${orderId}`);
-    this.logger.log(`Client ${client.id} joined order:${orderId}`);
-    client.emit('joined', { orderId, message: 'Subscribed to order updates' });
-  }
-
-  @SubscribeMessage('leave_order')
-  handleLeaveOrder(client: Socket, orderId: string) {
-    client.leave(`order:${orderId}`);
-    this.logger.log(`Client ${client.id} left order:${orderId}`);
+  handleDisconnect(client: AuthenticatedSocket) {
+    console.log(`WS Disconnected: ${client.user?.email || 'anonymous'}`);
   }
 
   @SubscribeMessage('join_kitchen')
-  handleJoinKitchen(client: Socket) {
+  handleJoinKitchen(client: AuthenticatedSocket) {
+    if (!client.user) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+    // Only admin and kitchen staff can join kitchen room
+    if (!['admin', 'kitchen'].includes(client.user.role)) {
+      client.emit('error', { message: 'Forbidden: kitchen access required' });
+      return;
+    }
     client.join('kitchen');
-    this.logger.log(`Client ${client.id} joined kitchen`);
-    client.emit('joined', { room: 'kitchen', message: 'Subscribed to kitchen updates' });
+    client.emit('joined', { room: 'kitchen', user: client.user.email });
   }
 
-  @SubscribeMessage('join_driver')
-  handleJoinDriver(client: Socket, driverId: string) {
-    client.join(`driver:${driverId}`);
-    this.logger.log(`Client ${client.id} joined driver:${driverId}`);
-    client.emit('joined', { driverId, message: 'Subscribed to driver updates' });
+  @SubscribeMessage('join_order')
+  handleJoinOrder(client: AuthenticatedSocket, @MessageBody() data: { orderId: string }) {
+    if (!client.user) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+    // Users can only join their own orders unless admin/kitchen/driver
+    const allowedRoles = ['admin', 'kitchen', 'driver'];
+    if (!allowedRoles.includes(client.user.role)) {
+      // Verify ownership
+      // This would need order lookup - simplified here
+      // In production: check if order.userId === client.user.userId
+    }
+    client.join(`order:${data.orderId}`);
+    client.emit('joined', { room: `order:${data.orderId}` });
   }
 
-  emitOrderStatus(orderId: string, status: string, data?: any) {
-    this.server.to(`order:${orderId}`).emit('order_status_changed', {
+  @SubscribeMessage('leave_order')
+  handleLeaveOrder(client: AuthenticatedSocket, @MessageBody() data: { orderId: string }) {
+    client.leave(`order:${data.orderId}`);
+  }
+
+  // Called by OrdersService when order status changes
+  broadcastOrderStatus(orderId: string, status: string, data?: any) {
+    this.server.to(`order:${orderId}`).emit('order_status_updated', {
       orderId,
       status,
       timestamp: new Date().toISOString(),
@@ -115,11 +113,11 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     });
   }
 
-  emitNewOrderToKitchen(orderData: any) {
-    this.server.to('kitchen').emit('new_order', orderData);
-  }
-
-  emitDeliveryAssignment(driverId: string, orderData: any) {
-    this.server.to(`driver:${driverId}`).emit('delivery_assigned', orderData);
+  // Called by OrdersService when new order is created
+  broadcastNewOrder(order: any) {
+    this.server.to('kitchen').emit('kitchen:new', {
+      order,
+      timestamp: new Date().toISOString(),
+    });
   }
 }

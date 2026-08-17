@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { webApi } from "./api";
+import { api } from "./api";
 
 interface CreateOrderData {
   items: { productId: string; quantity: number; variantId?: string; addons?: string[] }[];

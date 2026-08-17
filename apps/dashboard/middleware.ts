@@ -1,62 +1,50 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { jwtVerify } from 'jose';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-me');
-
-// Ścieżki publiczne — nie wymagają auth
-const PUBLIC_PATHS = ['/login', '/forbidden', '/_next', '/favicon.ico'];
-
-// Dozwolone role w dashboard
-const ALLOWED_ROLES = ['admin', 'kitchen', 'driver'];
+const PUBLIC_PATHS = ["/login", "/forbidden"];
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Publiczne ścieżki — przepuść
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.next();
   }
 
-  // Statyczne assety — przepuść
-  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)) {
-    return NextResponse.next();
-  }
+  const token = request.cookies.get("access_token")?.value;
 
-  const token = request.cookies.get('access_token')?.value;
-
-  // Brak tokena → login
   if (!token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET, {
-      clockTolerance: 60,
-    });
-
-    const role = payload.role as string;
-
-    // Rola niedozwolona → forbidden
-    if (!ALLOWED_ROLES.includes(role)) {
-      return NextResponse.redirect(new URL('/forbidden', request.url));
+    if (!JWT_SECRET) {
+      console.error("JWT_SECRET not configured");
+      return NextResponse.redirect(new URL("/forbidden", request.url));
     }
 
-    // Dodaj nagłówek z userId dla SSR (opcjonalnie)
-    const response = NextResponse.next();
-    response.headers.set('x-user-id', payload.sub as string);
-    response.headers.set('x-user-role', role);
-    return response;
-  } catch {
-    // Token nieważny/wygasł → login
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret, { clockTolerance: 60 });
+
+    // Role-based path protection
+    const role = payload.role as string;
+
+    if (pathname.startsWith("/kds") && role !== "kitchen" && role !== "admin") {
+      return NextResponse.redirect(new URL("/forbidden", request.url));
+    }
+
+    if (pathname.startsWith("/admin") && role !== "admin") {
+      return NextResponse.redirect(new URL("/forbidden", request.url));
+    }
+
+    return NextResponse.next();
+  } catch (err) {
+    console.error("JWT verification failed:", err);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js).*)"],
 };

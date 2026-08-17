@@ -3,202 +3,316 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useOrder } from "@/lib/hooks";
-import { CheckoutTimeline } from "@ros/ui";
-import { Package, ChefHat, Truck, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { useOrder, useCancelOrder } from "@/lib/hooks";
+import { useAuth } from "@/lib/auth-context";
+import { getWebSocketUrl } from "@/lib/api";
+import { Clock, MapPin, Phone, User, Package, CheckCircle, ChevronLeft, XCircle } from "lucide-react";
 
-const statusSteps = [
-  { status: "pending_payment", label: "Oczekiwanie na płatność", icon: <Clock className="w-5 h-5" />, description: "Twoje zamówienie czeka na potwierdzenie płatności." },
-  { status: "paid", label: "Opłacone", icon: <CheckCircle className="w-5 h-5" />, description: "Płatność potwierdzona. Zamówienie trafia do kuchni." },
-  { status: "confirmed", label: "Przyjęte", icon: <Package className="w-5 h-5" />, description: "Kuchnia potwierdziła zamówienie i rozpoczyna przygotowanie." },
-  { status: "preparing", label: "W przygotowaniu", icon: <ChefHat className="w-5 h-5" />, description: "Twoje dania są właśnie przygotowywane przez naszych kucharzy." },
-  { status: "ready_for_pickup", label: "Gotowe", icon: <Package className="w-5 h-5" />, description: "Zamówienie jest gotowe do wydania kierowcy lub odbioru." },
-  { status: "out_for_delivery", label: "W drodze", icon: <Truck className="w-5 h-5" />, description: "Kierowca jest w drodze z Twoim zamówieniem!" },
-  { status: "delivered", label: "Dostarczone", icon: <CheckCircle className="w-5 h-5" />, description: "Smacznego! Dziękujemy za zamówienie." },
-  { status: "cancelled", label: "Anulowane", icon: <AlertCircle className="w-5 h-5" />, description: "Zamówienie zostało anulowane." },
+const statusFlow = [
+  { key: "confirmed", label: "Przyjęte", icon: Package },
+  { key: "preparing", label: "W przygotowaniu", icon: Clock },
+  { key: "ready_for_pickup", label: "Gotowe", icon: CheckCircle },
+  { key: "out_for_delivery", label: "W drodze", icon: MapPin },
+  { key: "delivered", label: "Dostarczone", icon: CheckCircle },
 ];
 
-function getCurrentStepIndex(status: string): number {
-  const idx = statusSteps.findIndex((s) => s.status === status);
-  return idx >= 0 ? idx : 0;
-}
+const statusLabels: Record<string, string> = {
+  pending_payment: "Oczekuje płatności",
+  paid: "Opłacone",
+  confirmed: "Przyjęte",
+  preparing: "W przygotowaniu",
+  ready_for_pickup: "Gotowe",
+  out_for_delivery: "W drodze",
+  delivered: "Dostarczone",
+  cancelled: "Anulowane",
+};
 
-export default function TrackPage() {
+export default function TrackOrderPage() {
   const params = useParams();
   const orderId = params.orderId as string;
-  const { data: order, loading, error, refetch } = useOrder(orderId);
-  const [socketStatus, setSocketStatus] = useState<string>("connecting");
+  const { data: order, isLoading, error } = useOrder(orderId);
+  const { isAuthenticated } = useAuth();
+  const cancelOrder = useCancelOrder();
+  const [wsStatus, setWsStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [estimatedTime, setEstimatedTime] = useState<string>("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Poll every 10 seconds as fallback
+  // WebSocket for real-time updates
   useEffect(() => {
     if (!orderId) return;
-    const interval = setInterval(() => { refetch(); }, 10000);
-    return () => clearInterval(interval);
-  }, [orderId, refetch]);
-
-  // WebSocket — connect to API service (via Nginx in prod, direct in dev Docker)
-  useEffect(() => {
-    if (!orderId) return;
-    const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || "ws://api:4001")
-      .replace("http://", "ws://")
-      .replace("https://", "wss://");
-    const ws = new WebSocket(wsUrl);
+    const wsUrl = getWebSocketUrl();
+    const ws = new WebSocket(`${wsUrl}/orders`);
 
     ws.onopen = () => {
-      setSocketStatus("connected");
+      setWsStatus("connected");
+      const token = document.cookie.match(/access_token=([^;]+)/)?.[1];
+      if (token) ws.send(JSON.stringify({ event: "auth", data: { token } }));
       ws.send(JSON.stringify({ event: "join_order", data: { orderId } }));
     };
-
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        if (msg.event === "order_status_updated" && msg.data?.orderId === orderId) {
-          refetch();
+        if (msg.event === "order_status_updated" && msg.orderId === orderId) {
+          // React Query auto-refetch via invalidation
         }
-      } catch {}
+      } catch { /* ignore */ }
     };
-
-    ws.onclose = () => setSocketStatus("disconnected");
-    ws.onerror = () => setSocketStatus("error");
-
+    ws.onclose = () => setWsStatus("disconnected");
+    ws.onerror = () => setWsStatus("disconnected");
     return () => ws.close();
-  }, [orderId, refetch]);
+  }, [orderId]);
 
-  if (loading) {
+  // Calculate estimated time
+  useEffect(() => {
+    if (!order) return;
+    const times: Record<string, string> = {
+      confirmed: "25-35 minut",
+      preparing: "15-25 minut",
+      ready_for_pickup: "5-10 minut",
+      out_for_delivery: "5-15 minut",
+      delivered: "Dostarczone",
+    };
+    setEstimatedTime(times[order.status] || "");
+  }, [order?.status]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="animate-pulse text-red-600 font-bold text-xl">Ładowanie zamówienia...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4" />
+          <p className="text-neutral-500 font-medium">Ładowanie zamówienia...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 font-bold text-xl mb-2">Nie znaleziono zamówienia</p>
-          <p className="text-neutral-500 mb-6">{error || "Sprawdź numer zamówienia."}</p>
-          <Link href="/" className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition">
-            Wróć na stronę główną
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <Package className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
+          <h1 className="text-2xl font-bold text-neutral-900 mb-2">Nie znaleziono zamówienia</h1>
+          <p className="text-neutral-500 mb-6">Sprawdź numer zamówienia lub skontaktuj się z nami.</p>
+          <Link href="/track" className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition inline-block">
+            Twoje zamówienia
           </Link>
         </div>
       </div>
     );
   }
 
-  const currentStep = getCurrentStepIndex(order.status);
-  const timelineSteps = statusSteps.slice(0, 7).map((s, i) => ({
-    label: s.label,
-    icon: s.icon,
-    completed: i <= currentStep && order.status !== "cancelled",
-    active: i === currentStep && order.status !== "cancelled",
-  }));
+  const currentStatusIndex = statusFlow.findIndex((s) => s.key === order.status);
+  const canCancel = ["pending_payment", "paid", "confirmed"].includes(order.status);
 
   return (
     <div className="min-h-screen bg-neutral-50">
+      {/* Header */}
       <header className="bg-white border-b border-neutral-200">
-        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="text-2xl font-black text-red-600 tracking-tight">WebowoROS</Link>
-          <Link href="/menu" className="text-sm font-medium text-red-600 hover:underline">Nowe zamówienie</Link>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-neutral-500">Numer zamówienia</p>
-              <h1 className="text-2xl font-black text-neutral-900">{order.orderNumber}</h1>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-neutral-500">Status</p>
-              <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
-                order.status === "delivered" ? "bg-green-100 text-green-700" :
-                order.status === "cancelled" ? "bg-red-100 text-red-700" :
-                "bg-amber-100 text-amber-700"
-              }`}>
-                {statusSteps.find((s) => s.status === order.status)?.icon}
-                {statusSteps.find((s) => s.status === order.status)?.label || order.status}
+          <div className="flex items-center gap-3">
+            <Link href="/track" className="text-sm text-neutral-500 hover:text-red-600 transition flex items-center gap-1">
+              <ChevronLeft className="w-4 h-4" />
+              Wszystkie
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${
+                wsStatus === "connected" ? "bg-green-500" : wsStatus === "connecting" ? "bg-amber-500" : "bg-red-500"
+              }`} />
+              <span className="text-xs text-neutral-500">
+                {wsStatus === "connected" ? "Live" : wsStatus === "connecting" ? "Łączenie..." : "Offline"}
               </span>
             </div>
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-neutral-500">{new Date(order.createdAt).toLocaleString("pl-PL")}</span>
-            <span className="font-bold text-neutral-900">{Number(order.finalAmount).toFixed(2)} zł</span>
-          </div>
+        </div>
+      </header>
+
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        {/* Order Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-black text-neutral-900 mb-2">
+            Zamówienie #{order.id.slice(-6).toUpperCase()}
+          </h1>
+          <p className="text-neutral-500">
+            Złożone {new Date(order.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+          </p>
+          {estimatedTime && order.status !== "delivered" && order.status !== "cancelled" && (
+            <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-full font-medium">
+              <Clock className="w-4 h-4" />
+              Szacowany czas: {estimatedTime}
+            </div>
+          )}
         </div>
 
-        {order.status !== "cancelled" ? (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
-            <h2 className="text-lg font-bold text-neutral-900 mb-4">Postęp zamówienia</h2>
-            <CheckoutTimeline steps={timelineSteps} currentStep={currentStep} />
-            <p className="mt-4 text-sm text-neutral-600">{statusSteps[currentStep]?.description}</p>
-          </div>
-        ) : (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+        {/* Status Timeline */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
+          <h2 className="text-lg font-bold text-neutral-900 mb-4">Status zamówienia</h2>
+          {order.status === "cancelled" ? (
+            <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl">
+              <XCircle className="w-8 h-8 text-red-600" />
               <div>
-                <h2 className="font-bold text-red-800">Zamówienie anulowane</h2>
-                <p className="text-sm text-red-600">{order.history?.[0]?.note || "Zamówienie zostało anulowane."}</p>
+                <p className="font-bold text-red-700">Zamówienie anulowane</p>
+                <p className="text-sm text-red-600">{order.cancellationReason || "Zamówienie zostało anulowane"}</p>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="relative">
+              <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-neutral-200" />
+              <div className="space-y-6">
+                {statusFlow.map((status, index) => {
+                  const isCompleted = index <= currentStatusIndex;
+                  const isCurrent = index === currentStatusIndex;
+                  const Icon = status.icon;
+                  return (
+                    <div key={status.key} className="relative flex items-center gap-4">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                        isCompleted ? "bg-red-600 text-white" : "bg-neutral-200 text-neutral-400"
+                      } ${isCurrent ? "ring-4 ring-red-100" : ""}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className={`font-medium ${isCompleted ? "text-neutral-900" : "text-neutral-400"}`}>
+                          {status.label}
+                        </p>
+                        {isCurrent && <p className="text-sm text-red-600 font-medium">Aktualny status</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
+        {/* Order Details */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
-          <h2 className="text-lg font-bold text-neutral-900 mb-4">Zamówione produkty</h2>
+          <h2 className="text-lg font-bold text-neutral-900 mb-4">Szczegóły zamówienia</h2>
           <div className="space-y-3">
-            {order.items?.map((item: any) => (
-              <div key={item.id} className="flex justify-between items-start py-3 border-b border-neutral-100 last:border-0">
-                <div>
-                  <p className="font-medium text-neutral-900">{item.product?.name || "Produkt"} x{item.quantity}</p>
+            {order.items?.map((item: any, idx: number) => (
+              <div key={idx} className="flex justify-between items-start py-3 border-b border-neutral-100 last:border-0">
+                <div className="flex-1">
+                  <p className="font-medium text-neutral-900">{item.quantity}x {item.name}</p>
+                  {item.variantName && <p className="text-sm text-neutral-500">{item.variantName}</p>}
                   {item.addons?.length > 0 && (
-                    <p className="text-xs text-neutral-400">+ {item.addons.map((a: any) => `Dodatek x${a.quantity}`).join(", ")}</p>
+                    <p className="text-sm text-neutral-500">+ {item.addons.map((a: any) => a.name).join(", ")}</p>
                   )}
+                  {item.notes && <p className="text-sm text-amber-600 italic">{item.notes}</p>}
                 </div>
-                <p className="font-medium text-neutral-900">{Number(item.unitPrice * item.quantity).toFixed(2)} zł</p>
+                <span className="font-bold text-neutral-900 ml-4">{item.totalPrice?.toFixed(2)} zł</span>
               </div>
             ))}
           </div>
-          <div className="border-t border-neutral-200 pt-4 mt-4 space-y-2">
-            <div className="flex justify-between text-sm"><span className="text-neutral-500">Wartość produktów</span><span>{Number(order.totalAmount).toFixed(2)} zł</span></div>
-            {Number(order.discountAmount) > 0 && (
-              <div className="flex justify-between text-sm"><span className="text-neutral-500">Rabat</span><span className="text-green-600">-{Number(order.discountAmount).toFixed(2)} zł</span></div>
+
+          <div className="mt-4 pt-4 border-t border-neutral-200 space-y-2">
+            <div className="flex justify-between text-neutral-600">
+              <span>Suma pozycji</span>
+              <span>{order.subtotal?.toFixed(2)} zł</span>
+            </div>
+            <div className="flex justify-between text-neutral-600">
+              <span>Dostawa</span>
+              <span className={order.deliveryCost === 0 ? "text-green-600 font-medium" : ""}>
+                {order.deliveryCost === 0 ? "Darmowa" : `${order.deliveryCost?.toFixed(2)} zł`}
+              </span>
+            </div>
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Rabat</span>
+                <span>-{order.discountAmount?.toFixed(2)} zł</span>
+              </div>
             )}
-            {Number(order.tip) > 0 && (
-              <div className="flex justify-between text-sm"><span className="text-neutral-500">Napiwek</span><span>{Number(order.tip).toFixed(2)} zł</span></div>
-            )}
-            <div className="flex justify-between text-lg font-bold pt-2 border-t border-neutral-100">
-              <span>Razem</span><span className="text-red-600">{Number(order.finalAmount).toFixed(2)} zł</span>
+            <div className="flex justify-between pt-2 border-t border-neutral-200">
+              <span className="font-bold text-neutral-900">Razem</span>
+              <span className="font-bold text-xl text-red-600">{order.total?.toFixed(2)} zł</span>
             </div>
           </div>
         </div>
 
-        {order.address && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
-            <h2 className="text-lg font-bold text-neutral-900 mb-4">Adres dostawy</h2>
-            <p className="text-neutral-700">{order.address.street} {order.address.buildingNumber}{order.address.apartmentNumber && `/${order.address.apartmentNumber}`}</p>
-            <p className="text-neutral-500 text-sm">{order.address.postalCode} {order.address.city}</p>
-            {order.address.floor && <p className="text-neutral-500 text-sm">Piętro: {order.address.floor}</p>}
-            {order.address.intercom && <p className="text-neutral-500 text-sm">Domofon: {order.address.intercom}</p>}
+        {/* Delivery Info */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
+          <h2 className="text-lg font-bold text-neutral-900 mb-4">Dane dostawy</h2>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <User className="w-5 h-5 text-neutral-400" />
+              <span className="text-neutral-700">{order.deliveryFirstName} {order.deliveryLastName}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Phone className="w-5 h-5 text-neutral-400" />
+              <span className="text-neutral-700">{order.deliveryPhone}</span>
+            </div>
+            {order.deliveryType === "delivery" ? (
+              <div className="flex items-center gap-3">
+                <MapPin className="w-5 h-5 text-neutral-400" />
+                <span className="text-neutral-700">
+                  {order.deliveryStreet} {order.deliveryBuildingNumber}
+                  {order.deliveryApartmentNumber ? `/${order.deliveryApartmentNumber}` : ""}, {order.deliveryPostalCode} {order.deliveryCity}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Package className="w-5 h-5 text-neutral-400" />
+                <span className="text-neutral-700">Odbiór osobisty</span>
+              </div>
+            )}
+            {order.deliveryNotes && (
+              <div className="mt-2 p-3 bg-amber-50 rounded-xl text-sm text-amber-800">
+                <span className="font-medium">Uwagi:</span> {order.deliveryNotes}
+              </div>
+            )}
           </div>
-        )}
-
-        {order.contact && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
-            <h2 className="text-lg font-bold text-neutral-900 mb-4">Dane kontaktowe</h2>
-            <p className="text-neutral-700">{order.contact.firstName} {order.contact.lastName}</p>
-            <p className="text-neutral-500 text-sm">{order.contact.phone}</p>
-            <p className="text-neutral-500 text-sm">{order.contact.email}</p>
-          </div>
-        )}
-
-        <div className="flex items-center justify-center gap-2 text-xs text-neutral-400">
-          <span className={`w-2 h-2 rounded-full ${socketStatus === "connected" ? "bg-green-500" : socketStatus === "connecting" ? "bg-amber-500" : "bg-red-500"}`} />
-          {socketStatus === "connected" ? "Połączono (aktualizacje na żywo)" : socketStatus === "connecting" ? "Łączenie..." : "Offline (odświeżanie co 10s)"}
         </div>
-      </main>
+
+        {/* Payment Info */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-6">
+          <h2 className="text-lg font-bold text-neutral-900 mb-4">Płatność</h2>
+          <div className="flex items-center justify-between">
+            <span className="text-neutral-600">Metoda</span>
+            <span className="font-medium text-neutral-900">
+              {order.paymentMethod === "card" ? "Karta" : order.paymentMethod === "blik" ? "BLIK" : "Gotówka przy odbiorze"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-neutral-600">Status</span>
+            <span className={`font-medium ${
+              order.paymentStatus === "paid" ? "text-green-600" : order.paymentStatus === "failed" ? "text-red-600" : "text-amber-600"
+            }`}>
+              {order.paymentStatus === "paid" ? "Opłacone" : order.paymentStatus === "failed" ? "Nieudana" : "Oczekuje"}
+            </span>
+          </div>
+        </div>
+
+        {/* Cancel Order */}
+        {canCancel && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100">
+            {!showCancelConfirm ? (
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                className="w-full py-3 border border-red-200 text-red-600 font-medium rounded-xl hover:bg-red-50 transition"
+              >
+                Anuluj zamówienie
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-neutral-600 text-center">Czy na pewno chcesz anulować to zamówienie?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="flex-1 py-3 border border-neutral-200 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition"
+                  >
+                    Nie, zostaw
+                  </button>
+                  <button
+                    onClick={() => cancelOrder.mutate(orderId)}
+                    disabled={cancelOrder.isPending}
+                    className="flex-1 py-3 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+                  >
+                    {cancelOrder.isPending ? "Anulowanie..." : "Tak, anuluj"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
