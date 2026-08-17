@@ -14,6 +14,22 @@ interface CreateOrderData {
   tip?: number;
 }
 
+interface OrderResponse {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+}
+
+/**
+ * Hook do tworzenia zamówień z automatyczną obsługą płatności (DEV).
+ * 
+ * Dla paymentMethod === 'card' lub 'blik' — automatycznie wywołuje symulator
+ * płatności, który natychmiast oznacza zamówienie jako opłacone.
+ * 
+ * Dla 'cash_on_delivery' — pomija symulator (płatność przy odbiorze).
+ */
 export function useCreateOrder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,9 +42,30 @@ export function useCreateOrder() {
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        const result = await webApi.createOrder({ ...data, idempotencyKey });
+        // 1. Utwórz zamówienie
+        const orderResponse = await api.post<OrderResponse>("/v1/orders", { ...data, idempotencyKey });
+        const order = orderResponse.data;
+
+        // 2. DEV: Automatycznie przetwórz płatność dla karty / BLIK (symulator)
+        if (data.paymentMethod === "card" || data.paymentMethod === "blik") {
+          try {
+            await api.post("/v1/payments/simulate", {
+              orderId: order.id,
+              success: true,
+              method: data.paymentMethod,
+            });
+            // Lokalna aktualizacja stanu po udanej płatności
+            order.status = "confirmed";
+            order.paymentStatus = "completed";
+          } catch (paymentErr: any) {
+            // Symulator nie powiódł się, ale zamówienie zostało utworzone
+            console.warn("[DEV] Symulator płatności nie powiódł się:", paymentErr.message);
+            // Zamówienie pozostaje w statusie pending_payment — nie tracimy go
+          }
+        }
+
         setLoading(false);
-        return result;
+        return order;
       } catch (e: any) {
         if (attempt === retries) {
           setError(e.message);

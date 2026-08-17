@@ -3,7 +3,9 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy all package manifests for workspace install
-COPY package.json package-lock.json ./
+# Copy package manifests (package-lock.json optional for reproducible builds)
+COPY package.json ./
+COPY package-lock.json* ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY apps/dashboard/package.json ./apps/dashboard/

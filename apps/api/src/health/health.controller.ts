@@ -1,45 +1,29 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
+import {
+  HealthCheck,
+  HealthCheckService,
+  PrismaHealthIndicator,
+  MemoryHealthIndicator,
+} from '@nestjs/terminus';
+import { RedisHealthIndicator } from './redis.health.indicator';
 
-class HealthCheckDto {
-  status: string;
-  checks: Record<string, string>;
-  timestamp: string;
-}
-
-@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(
-    private prisma: PrismaService,
-    private redis: RedisService,
+    private health: HealthCheckService,
+    private prisma: PrismaHealthIndicator,
+    private memory: MemoryHealthIndicator,
+    private redis: RedisHealthIndicator,
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Health check', description: 'Checks database and Redis connectivity' })
-  @ApiResponse({ status: 200, description: 'System health status', type: HealthCheckDto })
-  async check() {
-    const checks: Record<string, string> = {};
-    let status = 'ok';
-
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      checks.database = 'up';
-    } catch {
-      checks.database = 'down';
-      status = 'degraded';
-    }
-
-    try {
-      await this.redis.getClient().ping();
-      checks.redis = 'up';
-    } catch {
-      checks.redis = 'down';
-      status = 'degraded';
-    }
-
-    return { status, checks, timestamp: new Date().toISOString() };
+  @HealthCheck()
+  check() {
+    return this.health.check([
+      () => this.prisma.pingCheck('prisma', { timeout: 3000 }),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024), // 150MB
+      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024), // 300MB
+      () => this.redis.isHealthy('redis'),
+    ]);
   }
 }

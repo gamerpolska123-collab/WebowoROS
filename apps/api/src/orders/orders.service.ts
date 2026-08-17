@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { OrdersGateway } from '../gateway/orders.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { OrderStatus, PaymentStatus, PaymentMethod, DeliveryType } from '@prisma/client';
@@ -39,6 +40,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private gateway: OrdersGateway,
   ) {}
 
   async createOrder(userId: string | null, dto: CreateOrderDto, idempotencyKey?: string) {
@@ -240,7 +242,20 @@ export class OrdersService {
       );
     }
 
-    const updated = await this.prisma.order.update({
+    const updated = // Create status history record
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: newStatus,
+        changedBy: userId || 'system',
+        note: note || null,
+      },
+    });
+
+    // Broadcast status change via WebSocket
+    this.gateway?.broadcastOrderStatus(orderId, newStatus, { note, changedBy: userId });
+
+    await this.prisma.order.update({
       where: { id: orderId },
       data: {
         status: newStatus,
@@ -276,5 +291,53 @@ export class OrdersService {
     }
 
     return updated;
+  }
+
+  /**
+   * Cancel order by customer (within 5 minutes of creation)
+   */
+  async cancelOrder(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, customerId: true, createdAt: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.customerId !== userId) {
+      throw new BadRequestException('You can only cancel your own orders');
+    }
+
+    // Allow cancellation only within 5 minutes and if status is PENDING or CONFIRMED
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    if (order.createdAt < fiveMinutesAgo) {
+      throw new BadRequestException('Order can only be cancelled within 5 minutes of creation');
+    }
+
+    if (order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
+      throw new BadRequestException(`Cannot cancel order with status: ${order.status}`);
+    }
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED' },
+    });
+
+    // Create status history
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: 'CANCELLED',
+        changedBy: userId,
+        note: 'Cancelled by customer',
+      },
+    });
+
+    // Broadcast via WebSocket
+    this.gateway?.broadcastOrderStatus(orderId, 'CANCELLED', { note: 'Cancelled by customer', changedBy: userId });
+
+    return updatedOrder;
   }
 }

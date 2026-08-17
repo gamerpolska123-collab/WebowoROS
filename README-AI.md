@@ -77,6 +77,48 @@ restaurant-order-system/
 
 ---
 
+## 4. STAN PROJEKTU (ZWERYFIKOWANY)
+
+> ⚠️ UWAGA: Poprzedni audyt zawierał fałszywe stwierdzenia o naprawionych błędach (np. "utworzono root package.json", "włączono strict mode", "naprawiono WS auth"). Niniejszy dokument jest jedynym wiarygodnym źródłem.
+
+### Krytyczne problemy do naprawy PRZED kolejną sesją:
+1. **Brak root `package.json`** — monorepo nie działa, Docker buildy zawiodą
+2. **Brak `package-lock.json`** — niereprodukowalne buildy
+3. **`.env` w working tree** — sekrety fizycznie obecne (mimo .gitignore)
+4. **Brak `@Throttle` na endpointach auth** — brute-force możliwy
+5. **Brak `idempotencyKey` w API DTO** — ryzyko podwójnych zamówień
+6. **Brak HttpOnly/Secure/SameSite w cookies** — XSS risk
+
+### Wysokie problemy:
+7. WS auth bez `@UseGuards` — ręczna weryfikacja
+8. Brak `ZodValidationPipe` globalnie
+9. Brak whitelisty rozszerzeń upload
+10. Brak testów frontendu
+11. Checkout web — mock data
+12. Bag web — brak sync z API
+13. Products dashboard — mock data
+14. Brak `OrderStatusHistory` w orders.service
+15. Brak WS emit w orders.service
+
+### Średnie problemy:
+16. Brak `strict: true` w tsconfig
+17. Konflikt wersji `lucide-react`
+18. Brak `robots.txt`, `sitemap.xml`
+19. Brak retry logic w hookach
+20. Brak `.github/workflows/`
+21. Brak `gzip` w Nginx
+22. Brak healthcheck API w dev compose
+23. Brak restart policies w dev compose
+24. Brak endpointu cancel dla klienta
+25. Brak Stripe/PayU integracji
+26. Brak Swagger w admin.controller
+27. Brak PrismaHealthIndicator
+
+### Niskie problemy:
+28. Brak `isDeleted` w Prisma schema (lub usunąć filtr z admin.service)
+29. Brak `BundleConfig` w seed
+30. Brak PWA config w next.config.js
+
 ## 4. STAN PROJEKTU
 
 ✅ Dokumentacja: Kompletna w folderze docs/  

@@ -42,6 +42,7 @@ export const CreateOrderSchema = z.object({
   notes: z.string().max(500).optional(),
   tip: z.number().min(0).max(100).optional(),
   appliedPromoIds: z.array(z.string().cuid()).optional(),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 export type CreateOrderDto = z.infer<typeof CreateOrderSchema>;
@@ -150,6 +151,9 @@ export class CreateOrderDtoClass {
 
   @ApiPropertyOptional({ type: [String], description: 'Applied promo IDs' })
   appliedPromoIds?: string[];
+
+  @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440000', description: 'Idempotency key to prevent duplicate orders' })
+  idempotencyKey?: string;
 }
 
 export class UpdateOrderStatusDtoClass {

@@ -1,6 +1,7 @@
 {
   "extends": "@ros/config/tsconfig.base.json",
   "compilerOptions": {
+    "strict": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "strictNullChecks": true,

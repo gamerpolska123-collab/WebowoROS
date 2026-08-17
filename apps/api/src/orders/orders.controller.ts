@@ -71,4 +71,17 @@ export class OrdersController {
   ) {
     return this.ordersService.updateStatus(id, dto.status as OrderStatus, userId, dto.note);
   }
+
+  @Post(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Cancel own order (within 5 minutes)' })
+  @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot cancel — time limit exceeded or invalid status' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async cancelOrder(
+    @Param('id') orderId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.ordersService.cancelOrder(orderId, user.userId);
+  }
 }

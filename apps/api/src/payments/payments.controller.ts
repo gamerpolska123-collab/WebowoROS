@@ -64,11 +64,10 @@ export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}
 
   @Post('simulate')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.admin, UserRole.kitchen)
+  @UseGuards(JwtAuthGuard)  // Dev: any authenticated user can simulate payment
   @ApiBearerAuth('access-token')
   @ApiCookieAuth('cookie-auth')
-  @ApiOperation({ summary: 'Simulate payment', description: 'Simulates a payment for testing purposes. Requires admin or kitchen role.' })
+  @ApiOperation({ summary: 'Simulate payment (DEV)', description: 'Simulates a payment for development/testing. In production, this endpoint is replaced by real Stripe/PayU integration. Any authenticated user can use this in dev mode.' })
   @ApiResponse({ status: 200, description: 'Payment simulated', type: SimulatePaymentResponseDto })
   @ApiResponse({ status: 404, description: 'Order not found' })
   @ApiResponse({ status: 400, description: 'Order status is not pending_payment' })

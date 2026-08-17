@@ -7,10 +7,9 @@ Location: Poland
 NestJS Team: https://nestjs.com
 Next.js Team: https://nextjs.org
 Prisma Team: https://prisma.io
-shadcn/ui: https://ui.shadcn.com
 
 /* SITE */
 Last update: 2026-08-17
 Standards: HTML5, CSS3, TypeScript
-Components: Next.js 14, NestJS 10, PostgreSQL 16, Redis 7
-Software: Docker, Nginx, GitHub Actions
+Components: Next.js 14, NestJS 10, Prisma 5, PostgreSQL 16, Redis 7
+Software: Docker, Nginx, Node.js 20

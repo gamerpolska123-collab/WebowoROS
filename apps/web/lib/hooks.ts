@@ -1,3 +1,18 @@
+// Retry utility with exponential backoff
+async function fetchWithRetry<T>(
+  fetchFn: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  try {
+    return await fetchFn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return fetchWithRetry(fetchFn, retries - 1, delay * 2);
+  }
+}
+
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

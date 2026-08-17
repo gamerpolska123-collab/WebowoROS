@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
+import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 
 async function bootstrap() {
   // Initialize Sentry
@@ -105,6 +106,7 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: false },
     }),
     new SanitizationPipe(),
+    new ZodValidationPipe(),
   );
 
   // Global prefix

@@ -1,3 +1,8 @@
+# 🎯 NEXT-STEPS.md — WebowoROS
+## Priorytetowa lista zadań (ZWERYFIKOWANA 2026-08-17)
+
+> ⚠️ UWAGA: Poprzednia wersja tego pliku była oparta na fałszywych stwierdzeniach z audytu. Niniejsza wersja zawiera TYLKO zweryfikowane zadania.
+
 # 📋 NASTĘPNE KROKI — WebowoROS
 ## Dokument przejęcia pracy dla następnej sesji AI
 

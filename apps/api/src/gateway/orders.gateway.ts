@@ -8,6 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
+import { WsJwtGuard } from '../common/guards/ws-jwt.guard';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -66,6 +67,7 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`WS Disconnected: ${client.user?.email || 'anonymous'}`);
   }
 
+  @UseGuards(WsJwtGuard)
   @SubscribeMessage('join_kitchen')
   handleJoinKitchen(client: AuthenticatedSocket) {
     if (!client.user) {
@@ -81,6 +83,7 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('joined', { room: 'kitchen', user: client.user.email });
   }
 
+  @UseGuards(WsJwtGuard)
   @SubscribeMessage('join_order')
   handleJoinOrder(client: AuthenticatedSocket, @MessageBody() data: { orderId: string }) {
     if (!client.user) {
@@ -98,6 +101,7 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('joined', { room: `order:${data.orderId}` });
   }
 
+  @UseGuards(WsJwtGuard)
   @SubscribeMessage('leave_order')
   handleLeaveOrder(client: AuthenticatedSocket, @MessageBody() data: { orderId: string }) {
     client.leave(`order:${data.orderId}`);

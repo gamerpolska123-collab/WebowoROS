@@ -49,6 +49,7 @@ export class AuthController {
     return { csrfToken: token };
   }
 
+  @Throttle(3, 60)
   @Post('register')
   @ApiOperation({ summary: 'Register new user', description: 'Creates a new customer account' })
   @ApiResponse({ status: 201, description: 'User registered successfully', type: RegisterResponseDto })
@@ -60,6 +61,7 @@ export class AuthController {
     return result;
   }
 
+  @Throttle(5, 60)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login', description: 'Authenticates user and sets HttpOnly cookies' })
@@ -91,6 +93,7 @@ export class AuthController {
     return { user: result.user };
   }
 
+  @Throttle(10, 60)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token', description: 'Rotates refresh token and issues new access token' })
