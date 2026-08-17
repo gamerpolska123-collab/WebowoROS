@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useOrder } from "@/lib/hooks";
-import { CheckoutTimeline } from "@weboworos/ui";
+import { CheckoutTimeline } from "@ros/ui";
 import { Package, ChefHat, Truck, CheckCircle, Clock, AlertCircle } from "lucide-react";
 
 const statusSteps = [

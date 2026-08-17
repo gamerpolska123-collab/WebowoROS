@@ -18,8 +18,23 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    "noEmit": false
+    "noEmit": false,
+    "paths": {
+      "@ros/*": [
+        "../../packages/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "test", "dist", "**/*.spec.ts"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*.spec.ts"
+  ]
 }

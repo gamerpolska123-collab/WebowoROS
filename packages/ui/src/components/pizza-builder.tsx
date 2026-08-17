@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import { useCart } from "@/lib/cart-context";
-import { Button, Badge, AddonConfigurator } from "@weboworos/ui";
+import { Button, Badge, AddonConfigurator } from "@ros/ui";
 import { Plus, Minus, X } from "lucide-react";
 
 interface PizzaBuilderProps {
@@ -11,8 +9,7 @@ interface PizzaBuilderProps {
   onAddToCart?: () => void;
 }
 
-export default function PizzaBuilder({ product, onAddToCart }: PizzaBuilderProps) {
-  const { addItem } = useCart();
+export function PizzaBuilder({ product, onAddToCart }: PizzaBuilderProps) {
   const [selectedVariant, setSelectedVariant] = useState<any>(product.variants?.[0] || null);
   const [selectedAddons, setSelectedAddons] = useState<{ addonId: string; quantity: number }[]>([]);
   const [quantity, setQuantity] = useState(1);

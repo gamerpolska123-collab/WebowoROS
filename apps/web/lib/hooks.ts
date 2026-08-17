@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
-import { Category, Product, Order } from "@weboworos/shared-types";
+import { Category, Product, Order } from "@ros/shared-types";
 
 export function useMenu() {
   const [data, setData] = useState<Category[] | null>(null);

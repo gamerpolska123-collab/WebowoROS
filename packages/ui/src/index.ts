@@ -21,6 +21,3 @@ export * from './components/addon-configurator';
 export * from './components/checkout-timeline';
 export * from './components/last-minute-addons';
 export * from './components/pizza-builder';
-export * from './components/pizza-builder'
-export * from './components/free-delivery-progress'
-export * from './components/checkout-timeline'

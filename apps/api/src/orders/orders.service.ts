@@ -116,49 +116,52 @@ export class OrdersService {
     const tip = Number(dto.tip || 0);
     const finalAmount = totalAmount + tip;
 
-    // Create order
-    const order = await this.prisma.order.create({
-      data: {
-        orderNumber,
-        userId,
-        status: OrderStatus.pending_payment,
-        totalAmount,
-        finalAmount,
-        deliveryType: dto.deliveryType,
-        address: dto.address || null,
-        contact: dto.contact,
-        paymentMethod: dto.paymentMethod as PaymentMethod,
-        paymentStatus: PaymentStatus.pending,
-        notes: dto.notes,
-        tip,
-        items: {
-          create: orderItems.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            notes: item.notes,
-            addons: item.addons.length > 0 ? {
-              create: item.addons,
-            } : undefined,
-          })),
-        },
-        history: {
-          create: {
-            status: OrderStatus.pending_payment,
-            note: 'Order created, awaiting payment',
+    // Create order within transaction
+    const order = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          orderNumber,
+          userId,
+          status: OrderStatus.pending_payment,
+          totalAmount,
+          finalAmount,
+          deliveryType: dto.deliveryType,
+          address: dto.address || null,
+          contact: dto.contact,
+          paymentMethod: dto.paymentMethod as PaymentMethod,
+          paymentStatus: PaymentStatus.pending,
+          notes: dto.notes,
+          tip,
+          items: {
+            create: orderItems.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              notes: item.notes,
+              addons: item.addons.length > 0 ? {
+                create: item.addons,
+              } : undefined,
+            })),
+          },
+          history: {
+            create: {
+              status: OrderStatus.pending_payment,
+              note: 'Order created, awaiting payment',
+            },
           },
         },
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-            addons: true,
+        include: {
+          items: {
+            include: {
+              product: true,
+              addons: true,
+            },
           },
+          history: true,
         },
-        history: true,
-      },
+      });
+      return created;
     });
 
     // Publish to Redis for real-time updates

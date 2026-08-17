@@ -8,7 +8,7 @@
 **Nazwa:** Restaurant Order System (ROS)  
 **Cel:** System zamówień online dla pizzerii z zaawansowanym upsellem, torba dostawcza zamiast koszyka, gamifikacja (confetti, progress bar), KDS, drukarki termiczne (bilety wewnętrzne — nie paragony fiskalne), dashboard admina, płatności Stripe/PayU, deployment na Raspberry Pi 4.
 
-**Stack:** Next.js 14 (App Router) + NestJS + PostgreSQL 16 + Redis 7 + Socket.io + Prisma + Tailwind + shadcn/ui + Turborepo + pnpm + Docker.
+**Stack:** Next.js 14 (App Router) + NestJS + PostgreSQL 16 + Redis 7 + Socket.io + Prisma + Tailwind + shadcn/ui + Turborepo + npm workspaces + Docker.
 
 ---
 
@@ -114,13 +114,13 @@ restaurant-order-system/
 
 ### Wymagania
 - Node.js >= 20.0.0
-- pnpm >= 9.0.0
+- npm >= 9.0.0
 - Docker + Docker Compose
 
 ### Pierwsze uruchomienie
 ```bash
 # 1. Instalacja zależności
-pnpm install
+npm install
 
 # 2. Baza danych i Redis
 docker-compose -f infra/docker/docker-compose.yml up -d postgres redis
@@ -131,16 +131,16 @@ cp apps/web/.env.example apps/web/.env
 cp apps/dashboard/.env.example apps/dashboard/.env
 
 # 4. Generowanie Prisma Client
-pnpm --filter api db:generate
+npm --filter api db:generate
 
 # 5. Migracje
-pnpm --filter api migrate:dev
+npm --filter api migrate:dev
 
 # 6. Seed danych
-pnpm --filter api db:seed
+npm --filter api db:seed
 
 # 7. Dev mode (wszystkie aplikacje)
-pnpm dev
+npm dev
 ```
 
 ### Porty
@@ -154,10 +154,10 @@ pnpm dev
 ### Testy
 ```bash
 # E2E tests
-pnpm --filter api test:e2e
+npm --filter api test:e2e
 
 # Unit tests
-pnpm --filter api test
+npm --filter api test
 ```
 
 ---
@@ -179,10 +179,10 @@ refactor(dashboard): extract OrderTable component
 ```
 
 ### PR Checklist
-- [ ] Testy przechodzą (`pnpm test`)
-- [ ] TypeScript strict (`pnpm typecheck`)
-- [ ] ESLint clean (`pnpm lint`)
-- [ ] Build success (`pnpm build`)
+- [ ] Testy przechodzą (`npm test`)
+- [ ] TypeScript strict (`npm typecheck`)
+- [ ] ESLint clean (`npm lint`)
+- [ ] Build success (`npm build`)
 - [ ] Prisma migrate deploy (jeśli zmiana schematu)
 
 ---
@@ -190,15 +190,15 @@ refactor(dashboard): extract OrderTable component
 ## 8. CHECKLISTY KONTROLNE
 
 ### Przed każdym commitem
-- [ ] `pnpm lint` — 0 błędów
-- [ ] `pnpm typecheck` — 0 błędów
-- [ ] `pnpm test` — wszystkie przechodzą
+- [ ] `npm lint` — 0 błędów
+- [ ] `npm typecheck` — 0 błędów
+- [ ] `npm test` — wszystkie przechodzą
 - [ ] Brak `console.log` w kodzie produkcyjnym
 - [ ] `.env` nie jest commitowany
 - [ ] Zmiany w schemacie Prisma mają migrację
 
 ### Przed deployem
-- [ ] `pnpm build` — success
+- [ ] `npm build` — success
 - [ ] Docker images buildują się lokalnie
 - [ ] Prisma migrate deploy przetestowany
 - [ ] Environment variables ustawione na serwerze
@@ -212,7 +212,7 @@ refactor(dashboard): extract OrderTable component
 ### Jak pracować z tym projektem
 1. **Przeczytaj wszystkie pliki** w folderze `docs/` i `prompts/` przed rozpoczęciem pracy
 2. **Pracuj etapami** — nie przeskakuj kolejności
-3. **Testuj lokalnie** — uruchom `pnpm dev` i sprawdź w przeglądarce
+3. **Testuj lokalnie** — uruchom `npm dev` i sprawdź w przeglądarce
 4. **Commituj często** — każda funkcjonalność = osobny commit
 5. **Dokumentuj zmiany** — aktualizuj README-AI.md i docs/etapy.md
 

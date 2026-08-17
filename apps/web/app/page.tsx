@@ -5,11 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useMenu } from "@/lib/hooks";
 import { useCart } from "@/lib/cart-context";
-import { ProductCard } from "@weboworos/ui";
-import { FreeDeliveryProgress } from "@weboworos/ui";
-import { PizzaBag } from "@weboworos/ui";
-import { Dialog, DialogContent } from "@weboworos/ui";
-import { PizzaBuilder } from "@weboworos/ui";
+import { ProductCard } from "@ros/ui";
+import { FreeDeliveryProgress } from "@ros/ui";
+import { PizzaBag } from "@ros/ui";
+import { Dialog, DialogContent } from "@ros/ui";
+import { PizzaBuilder } from "@ros/ui";
 
 export default function HomePage() {
   const { data: categories, loading, error } = useMenu();

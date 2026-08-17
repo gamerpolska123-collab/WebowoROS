@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { Plus } from "lucide-react";
@@ -10,7 +9,7 @@ interface ProductCardProps {
   onAdd?: () => void;
 }
 
-export default function ProductCard({ product, onAdd }: ProductCardProps) {
+export function ProductCard({ product, onAdd }: ProductCardProps) {
   const basePrice = Number(product.basePrice);
   const minPrice = product.variants?.length
     ? Math.min(...product.variants.map((v: any) => basePrice + Number(v.priceAdjustment)))

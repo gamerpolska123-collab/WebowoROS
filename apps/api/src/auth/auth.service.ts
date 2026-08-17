@@ -175,11 +175,25 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  private parseExpiryToDate(raw: string): Date {
+    const now = new Date();
+    const num = parseInt(raw.replace(/\D/g, ''), 10) || 7;
+    const unit = raw.replace(/[0-9]/g, '').trim() || 'd';
+    switch (unit) {
+      case 'm': now.setMinutes(now.getMinutes() + num); break;
+      case 'h': now.setHours(now.getHours() + num); break;
+      case 'd': now.setDate(now.getDate() + num); break;
+      case 'w': now.setDate(now.getDate() + num * 7); break;
+      case 'M': now.setMonth(now.getMonth() + num); break;
+      case 'y': now.setFullYear(now.getFullYear() + num); break;
+      default: now.setDate(now.getDate() + num); break;
+    }
+    return now;
+  }
+
   private async storeRefreshToken(userId: string, token: string) {
     const raw = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
-    const expiresInDays = parseInt(raw.replace(/\D/g, ''), 10) || 7;
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+    const expiresAt = this.parseExpiryToDate(raw);
 
     await this.prisma.refreshToken.create({
       data: {

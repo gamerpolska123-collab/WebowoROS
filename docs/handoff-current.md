@@ -268,3 +268,100 @@ docs/
   handoff-next.md      ← Zadania dla kolejnej AI
   handoff-arch.md      ← Architektura
 ```
+
+
+---
+
+## 🔧 POPRAWKI FAZA 1 — 2026-08-16
+
+### Naprawione błędy krytyczne:
+
+1. **Importy pakietów** — zamieniono `@weboworos/ui` → `@ros/ui` i `@weboworos/shared-types` → `@ros/shared-types` we wszystkich plikach `.ts/.tsx` (8 plików)
+
+2. **JWT TTL parser** — `auth.service.ts`: zamieniono błędny `parseInt(raw.replace(/\D/g, ''))` na pełny parser obsługujący `m/h/d/w/M/y` (np. `15m` = 15 minut, nie 15 dni)
+
+3. **Prisma transaction** — `orders.service.ts`: `createOrder` owinięty w `prisma.$transaction()` — atomowość tworzenia zamówienia + historii + itemów
+
+4. **JWT Guard Bearer fallback** — `jwt-auth.guard.ts`: dodano fallback do headera `Authorization: Bearer <token>` (Swagger UI działa poprawnie)
+
+5. **Logout autentykacja** — `auth.controller.ts`: dodano `@UseGuards(JwtAuthGuard)` do endpointu logout
+
+6. **Dockerfile.dev** — dodano `npm run build` dla `@ros/shared-types` i `@ros/ui` przed Prisma generate (brakowało `dist/`)
+
+7. **docker-compose.yml** — usunięto obsolete `version: '3.8'`
+
+### Zmiany w zależnościach:
+- `eslint-plugin-react-hooks` 4.6.2 → 5.1.0 (wsparcie ESLint 9)
+- `typescript-eslint` 8.1.0 → 8.18.0
+- `eslint-plugin-react` 7.35.0 → 7.37.0
+- `typescript` ujednolicono do `^5.5.4` w root
+- `prettier` ujednolicono do `^3.3.3` w root
+- `zod` ujednolicono do `^3.23.8` w web
+- `lucide-react` ujednolicono do `^0.427.0` w ui
+- `react`/`react-dom` peer deps ujednolicono do `^18.3.1` w ui
+- Usunięto `pnpm-workspace.yaml` (migracja pnpm → npm)
+- Usunięto `packageManager: pnpm` i `engines.pnpm` z root package.json
+
+### Pozostałe do zrobienia (Faza 2):
+- [ ] Wygenerować pełny `package-lock.json` (`npm install` wymagało stabilnego środowiska)
+- [ ] Dodać autentykację WebSocket Gateway (`handleConnection` middleware)
+- [ ] Zamienić `Math.random()` na sekwencję PostgreSQL dla `orderNumber`
+- [ ] Dodać Origin/Referer check do CSRF Guard
+- [ ] Walidacja `minOrderValue` w `createOrder`
+- [ ] Prawdziwa integracja płatności (Stripe/PayU) — obecnie tylko symulacja
+- [ ] Kolejność APP_GUARD: Throttler powinien być pierwszy
+
+
+---
+
+---
+
+---
+
+## 🔧 POPRAWKI FAZA 1 — KOMPLETNA LISTA (2026-08-17)
+
+### Naprawione błędy krytyczne (kompilacja + runtime):
+
+1. **Importy pakietów** — zamieniono `@weboworos/ui` → `@ros/ui` i `@weboworos/shared-types` → `@ros/shared-types`
+2. **Eksporty komponentów UI** — `export default` → `export function` (index.ts używa `export *`)
+3. **Usunięto `next/image`** z `packages/ui` — zamieniono na `<img>`
+4. **Usunięto błędny alias `@/`** z `pizza-builder.tsx`
+5. **Dodano `exports`** do `packages/ui/package.json` (`./styles/*`, `./tokens`)
+6. **`main`/`types` → `./src/index.ts`** — `dist/` nie istnieje w repo
+7. **Dodano `transpilePackages`** do `next.config.js` (web + dashboard)
+8. **Dodano `paths['@ros/*']`** do `tsconfig.json` (web + dashboard + api)
+9. **Dodano typ `Order`** do `shared-types` (alias `extends OrderResponse`)
+10. **Naprawiono `animations.css`** — usunięto `@layer utilities`
+11. **Naprawiono TTL parser** w `auth.service.ts`
+12. **`createOrder` w `prisma.$transaction()`**
+13. **JWT Bearer fallback** w `jwt-auth.guard.ts`
+14. **Logout guard** w `auth.controller.ts`
+15. **`Dockerfile.dev`** — usunięto `package-lock.json` z COPY, usunięto `db:generate` z build
+16. **`docker-compose.yml`** — dodano `db:generate` do command api, usunięto `version: '3.8'`, zamieniono `migrate:dev` na `db:migrate`
+17. **Skrypty npm** — dodano `clean`/`test` do wszystkich package.json
+18. **`packages/config/package.json`** — dodano wszystkie skrypty
+19. **`apps/printer-service/.env`** — utworzono
+20. **Usunięto `pnpm-workspace.yaml`**
+21. **Ujednolicenie zależności** — ESLint, React, zod, lucide-react, typescript, prettier
+
+### Naprawione błędy infrastrukturalne:
+
+22. **`Dockerfile.dev` — `node:20-alpine` → `node:20-slim`** — Prisma ma znane problemy z OpenSSL na Alpine ARM64 (Raspberry Pi). Debian Slim ma wbudowane OpenSSL.
+23. **`docker-compose.yml` — `--hostname 0.0.0.0`** dla web i dashboard — Next.js dev server domyślnie nasłuchuje tylko na `localhost`, przez co nie jest dostępny z innych urządzeń w sieci lokalnej.
+
+### Znane ostrzeżenia (nie błędy):
+- `Prisma failed to detect libssl` — na Alpine (już nieaktualne po zmianie na Slim)
+- `fonts.gstatic.com failed` — brak internetu na RPi, użyje fallback fontu
+- `Sentry global error handler` — można pominąć lub dodać `SENTRY_SUPPRESS_GLOBAL_ERROR_HANDLER_FILE_WARNING=1`
+
+### Pozostałe do zrobienia (Faza 2+):
+- [ ] Autentykacja WebSocket Gateway (`handleConnection` middleware)
+- [ ] Zamienić `Math.random()` na sekwencję PostgreSQL dla `orderNumber`
+- [ ] Origin/Referer check w CSRF Guard
+- [ ] Walidacja `minOrderValue` w `createOrder`
+- [ ] Kolejność APP_GUARD: Throttler powinien być pierwszy
+- [ ] Prawdziwe płatności Stripe/PayU (obecnie symulacja)
+- [ ] KDS — aktualizacje real-time
+- [ ] Management dostawców
+- [ ] Testy E2E (Playwright)
+- [ ] CI/CD pipeline (GitHub Actions)

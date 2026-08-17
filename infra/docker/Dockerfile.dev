@@ -1,9 +1,9 @@
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
-RUN apk add --no-cache libc6-compat
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Copy all package manifests
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY apps/dashboard/package.json ./apps/dashboard/
@@ -14,9 +14,6 @@ COPY packages/ui/package.json ./packages/ui/
 
 # Install ALL dependencies inside the container
 RUN npm install
-
-# Generate Prisma client
-RUN npm run db:generate --workspace=@ros/api
 
 # Default command (overridden by docker-compose per service)
 CMD ["sh"]

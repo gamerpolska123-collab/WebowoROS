@@ -213,3 +213,6 @@ export interface SiteConfig {
   socialProofEnabled: boolean;
   socialProofInterval: number;
 }
+
+// Alias dla kompatybilności z frontendem
+export interface Order extends OrderResponse {}

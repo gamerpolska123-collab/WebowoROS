@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCart } from "@/lib/cart-context";
 import { useCreateOrder } from "@/lib/hooks";
-import { CheckoutTimeline } from "@weboworos/ui";
+import { CheckoutTimeline } from "@ros/ui";
 import { CheckCircle, MapPin, CreditCard } from "lucide-react";
 import { checkoutSchema, CheckoutForm } from "./checkout-schema";
 import OrderSummary from "./order-summary";

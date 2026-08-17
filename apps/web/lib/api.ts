@@ -1,6 +1,6 @@
 "use client";
 
-import { Category, Product, Order, OrderStatus } from "@weboworos/shared-types";
+import { Category, Product, Order, OrderStatus } from "@ros/shared-types";
 
 // Use NEXT_PUBLIC_API_URL env var (set in Docker to http://api:4000/v1 or via Nginx)
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://api:4000/v1";

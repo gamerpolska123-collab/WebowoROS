@@ -116,6 +116,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout', description: 'Clears all auth cookies' })
   @ApiResponse({ status: 200, description: 'Logout successful', type: MessageResponseDto })

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMenu } from "@/lib/hooks";
 import { useCart } from "@/lib/cart-context";
-import { ProductCard, PizzaBag, PizzaBuilder, Dialog, DialogContent, Tabs, TabsList, TabsTrigger } from "@weboworos/ui";
+import { ProductCard, PizzaBag, PizzaBuilder, Dialog, DialogContent, Tabs, TabsList, TabsTrigger } from "@ros/ui";
 
 export default function MenuPage() {
   const searchParams = useSearchParams();

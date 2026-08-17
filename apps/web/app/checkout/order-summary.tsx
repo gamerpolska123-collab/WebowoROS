@@ -1,6 +1,6 @@
 "use client";
 
-import { FreeDeliveryProgress } from "@weboworos/ui";
+import { FreeDeliveryProgress } from "@ros/ui";
 import { CartItem } from "@/lib/cart-context";
 
 interface OrderSummaryProps {
