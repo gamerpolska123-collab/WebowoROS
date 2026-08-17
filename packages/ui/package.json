@@ -35,6 +35,8 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
-    }
+    },
+    "./styles/*": "./src/styles/*",
+    "./tokens/*": "./src/tokens/*"
   }
 }

@@ -55,7 +55,7 @@ export class OrdersService {
 
     // Validate products and calculate prices
     let totalAmount = 0;
-    const orderItems = [];
+    const orderItems: { productId: string; variantId?: string; quantity: number; unitPrice: number; totalPrice: number; notes?: string; addons?: any[] }[] = [];
 
     for (const item of dto.items) {
       const product = await this.prisma.product.findUnique({
@@ -128,7 +128,7 @@ export class OrdersService {
           totalAmount,
           finalAmount,
           deliveryType: dto.deliveryType,
-          address: dto.address || null,
+          address: dto.address ? dto.address as any : Prisma.JsonNull,
           contact: dto.contact,
           paymentMethod: dto.paymentMethod as PaymentMethod,
           paymentStatus: PaymentStatus.pending,
@@ -218,6 +218,7 @@ export class OrdersService {
   async updateStatus(orderId: string, newStatus: OrderStatus, changedBy?: string, note?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
+      include: { items: { include: { product: true } } },
     });
 
     if (!order) {
@@ -242,38 +243,32 @@ export class OrdersService {
       );
     }
 
-    const updated = // Create status history record
-    await this.prisma.orderStatusHistory.create({
-      data: {
-        orderId,
-        status: newStatus,
-        changedBy: userId || 'system',
-        note: note || null,
-      },
+    // Update order with new status and history in transaction
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: newStatus,
+          history: {
+            create: {
+              status: newStatus,
+              note: note || `Status changed to ${newStatus}`,
+              changedBy: changedBy || 'system',
+            },
+          },
+        },
+        include: {
+          items: { include: { product: true } },
+          history: { orderBy: { createdAt: 'desc' } },
+        },
+      });
+      return result;
     });
 
     // Broadcast status change via WebSocket
-    this.gateway?.broadcastOrderStatus(orderId, newStatus, { note, changedBy: userId });
+    this.gateway?.broadcastOrderStatus(orderId, newStatus, { note, changedBy: changedBy || 'system' });
 
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: newStatus,
-        history: {
-          create: {
-            status: newStatus,
-            note: note || `Status changed to ${newStatus}`,
-            changedBy,
-          },
-        },
-      },
-      include: {
-        items: { include: { product: true } },
-        history: { orderBy: { createdAt: 'desc' } },
-      },
-    });
-
-    // Publish status update
+    // Publish status update to Redis
     await this.redis.publish('order:updates', JSON.stringify({
       orderId: updated.id,
       status: updated.status,
@@ -299,14 +294,14 @@ export class OrdersService {
   async cancelOrder(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true, customerId: true, createdAt: true },
+      select: { id: true, status: true, userId: true, createdAt: true },
     });
 
     if (!order) {
       throw new NotFoundException('Order not found');
     }
 
-    if (order.customerId !== userId) {
+    if (order.userId !== userId) {
       throw new BadRequestException('You can only cancel your own orders');
     }
 
@@ -316,27 +311,27 @@ export class OrdersService {
       throw new BadRequestException('Order can only be cancelled within 5 minutes of creation');
     }
 
-    if (order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
+    if (order.status !== OrderStatus.pending_payment && order.status !== OrderStatus.confirmed) {
       throw new BadRequestException(`Cannot cancel order with status: ${order.status}`);
     }
 
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: 'CANCELLED' },
+      data: { status: OrderStatus.cancelled },
     });
 
     // Create status history
     await this.prisma.orderStatusHistory.create({
       data: {
         orderId,
-        status: 'CANCELLED',
+        status: OrderStatus.cancelled,
         changedBy: userId,
         note: 'Cancelled by customer',
       },
     });
 
     // Broadcast via WebSocket
-    this.gateway?.broadcastOrderStatus(orderId, 'CANCELLED', { note: 'Cancelled by customer', changedBy: userId });
+    this.gateway?.broadcastOrderStatus(orderId, OrderStatus.cancelled, { note: 'Cancelled by customer', changedBy: userId });
 
     return updatedOrder;
   }

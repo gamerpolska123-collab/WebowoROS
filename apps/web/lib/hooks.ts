@@ -1,3 +1,5 @@
+'use client';
+
 // Retry utility with exponential backoff
 async function fetchWithRetry<T>(
   fetchFn: () => Promise<T>,
@@ -12,8 +14,6 @@ async function fetchWithRetry<T>(
     return fetchWithRetry(fetchFn, retries - 1, delay * 2);
   }
 }
-
-'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';

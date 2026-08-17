@@ -41,14 +41,26 @@ export class AdminService {
 
   async deleteProduct(id: string) {
     await this.prisma.product.findUniqueOrThrow({ where: { id } });
-    await this.prisma.product.update({ where: { id }, data: { isAvailable: false } });
+    await this.prisma.product.update({ where: { id }, data: { isDeleted: true, isAvailable: false } });
     await this.menuService.invalidateMenuCache();
-    return { message: 'Product deactivated' };
+    return { message: 'Product soft-deleted' };
   }
 
   // ============================================================
   // CATEGORIES CRUD
   // ============================================================
+
+  async reorderCategories(updates: { id: string; sortOrder: number }[]) {
+    const results = await this.prisma.$transaction(
+      updates.map((u) =>
+        this.prisma.category.update({
+          where: { id: u.id },
+          data: { sortOrder: u.sortOrder },
+        }),
+      ),
+    );
+    return { message: 'Categories reordered', count: results.length };
+  }
   async getCategories() {
     return this.prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
   }
@@ -282,6 +294,70 @@ export class AdminService {
   }
 
   // ============================================================
+
+  // SALES REPORT — daily, weekly, monthly revenue breakdown
+  async getSalesReport(period: 'daily' | 'weekly' | 'monthly' = 'daily', days = 30) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        status: { not: OrderStatus.cancelled },
+      },
+      select: {
+        createdAt: true,
+        finalAmount: true,
+        status: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const report: Record<string, { date: string; revenue: number; orders: number; avgOrderValue: number }> = {};
+
+    for (const order of orders) {
+      let key: string;
+      const d = new Date(order.createdAt);
+
+      if (period === 'daily') {
+        key = d.toISOString().split('T')[0];
+      } else if (period === 'weekly') {
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      if (!report[key]) {
+        report[key] = { date: key, revenue: 0, orders: 0, avgOrderValue: 0 };
+      }
+      report[key].revenue += Number(order.finalAmount);
+      report[key].orders += 1;
+    }
+
+    const result = Object.values(report).map((r) => ({
+      ...r,
+      revenue: Number(r.revenue.toFixed(2)),
+      avgOrderValue: Number((r.revenue / r.orders).toFixed(2)),
+    }));
+
+    const totalRevenue = result.reduce((sum, r) => sum + r.revenue, 0);
+    const totalOrders = result.reduce((sum, r) => sum + r.orders, 0);
+
+    return {
+      period,
+      days,
+      data: result,
+      summary: {
+        totalRevenue: Number(totalRevenue.toFixed(2)),
+        totalOrders,
+        avgOrderValue: totalOrders > 0 ? Number((totalRevenue / totalOrders).toFixed(2)) : 0,
+      },
+    };
+  }
+
   // STATS
   // ============================================================
   async getStats() {

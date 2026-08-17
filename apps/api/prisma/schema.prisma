@@ -67,6 +67,7 @@ model Product {
   imageUrl    String?  @map("image_url")
   isAvailable Boolean  @default(true) @map("is_available")
   isFeatured  Boolean  @default(false) @map("is_featured")
+  isDeleted   Boolean  @default(false) @map("is_deleted")
   categoryId  String   @map("category_id")
   tags        String[] @default([])
   allergens   String[] @default([])
@@ -83,6 +84,7 @@ model Product {
   @@index([categoryId])
   @@index([isAvailable])
   @@index([isFeatured])
+  @@index([isDeleted])
   @@map("products")
 }
 

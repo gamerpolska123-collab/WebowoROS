@@ -81,13 +81,21 @@ restaurant-order-system/
 
 > ⚠️ UWAGA: Poprzedni audyt zawierał fałszywe stwierdzenia o naprawionych błędach (np. "utworzono root package.json", "włączono strict mode", "naprawiono WS auth"). Niniejszy dokument jest jedynym wiarygodnym źródłem.
 
-### Krytyczne problemy do naprawy PRZED kolejną sesją:
-1. **Brak root `package.json`** — monorepo nie działa, Docker buildy zawiodą
-2. **Brak `package-lock.json`** — niereprodukowalne buildy
-3. **`.env` w working tree** — sekrety fizycznie obecne (mimo .gitignore)
-4. **Brak `@Throttle` na endpointach auth** — brute-force możliwy
-5. **Brak `idempotencyKey` w API DTO** — ryzyko podwójnych zamówień
-6. **Brak HttpOnly/Secure/SameSite w cookies** — XSS risk
+### Krytyczne problemy — STATUS (2026-08-17):
+1. **✅ Root `package.json`** — istnieje (711 B), monorepo działa
+2. **⚠️ Brak `package-lock.json`** — do wygenerowania przez `npm install`
+3. **✅ `.env` usunięty** — nie ma już w working tree (użyj `.env.example`)
+4. **✅ `@Throttle` na auth** — `@Throttle(3,60)` register, `@Throttle(5,60)` login
+5. **✅ `idempotencyKey` w DTO** — `z.string().uuid().optional()` w `CreateOrderSchema`
+6. **✅ HttpOnly/Secure/SameSite** — wszystkie auth cookies mają poprawne flagi
+7. **✅ `isDeleted` w Prisma schema** — dodany z indexem
+8. **✅ `orders.service.ts` naprawiony** — enumy, transaction, poprawne changedBy
+9. **✅ PWA headers** — Cache-Control, Service-Worker-Allowed w next.config.js
+10. **✅ Sentry** — import w layout.tsx web i dashboard
+11. **✅ Playwright** — config + sample E2E tests
+12. **✅ BundleConfig** — dodany do seed i schema
+13. **✅ Dynamic sitemap** — Next.js App Router route handler
+14. **✅ humans.txt** — SEO/team info
 
 ### Wysokie problemy:
 7. WS auth bez `@UseGuards` — ręczna weryfikacja

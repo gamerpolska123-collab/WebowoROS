@@ -117,6 +117,12 @@ export class AdminController {
     };
   }
 
+  @Patch('categories/reorder')
+  @ApiOperation({ summary: 'Reorder categories', description: 'Batch update sortOrder for categories' })
+  async reorderCategories(@Body() updates: { id: string; sortOrder: number }[]) {
+    return this.adminService.reorderCategories(updates);
+  }
+
   // Categories
   @Get('categories')
   @ApiOperation({ summary: 'List categories', description: 'Returns all product categories' })
@@ -264,6 +270,17 @@ export class AdminController {
     @Body() dto: UpdateOrderStatusDtoClass,
   ) {
     return this.adminService.updateOrderStatus(id, dto.status as any, dto.note);
+  }
+
+  @Get('reports/sales')
+  @ApiOperation({ summary: 'Sales report', description: 'Returns revenue breakdown by day/week/month' })
+  @ApiQuery({ name: 'period', required: false, enum: ['daily', 'weekly', 'monthly'] })
+  @ApiQuery({ name: 'days', required: false, type: Number })
+  async getSalesReport(
+    @Query('period') period: 'daily' | 'weekly' | 'monthly' = 'daily',
+    @Query('days') days: number = 30,
+  ) {
+    return this.adminService.getSalesReport(period, days);
   }
 
   // Stats

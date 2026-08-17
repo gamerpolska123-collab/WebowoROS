@@ -1,3 +1,8 @@
+# =============================================================================
+# WebowoROS — Docker Swarm Production
+# ⚠️  WSZYSTKO DZIAŁA W KONTENERACH DOCKER
+# =============================================================================
+
 version: '3.8'
 
 # Docker Swarm — rozproszony deployment na 2-3 serwery

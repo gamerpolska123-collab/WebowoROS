@@ -1,6 +1,30 @@
 FROM node:20-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Install system dependencies: openssl, wget (healthcheck), git, playwright deps
+RUN apt-get update && apt-get install -y \
+    openssl \
+    wget \
+    git \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libxss1 \
+    libgtk-3-0 \
+    libgbm1 \
+    libasound2 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libxtst6 \
+    libpangocairo-1.0-0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libatspi2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright browsers globally (for e2e tests inside container)
+RUN npx playwright install-deps chromium firefox webkit 2>/dev/null || true
 
 # Copy all package manifests
 COPY package.json ./
@@ -12,7 +36,7 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/ui/package.json ./packages/ui/
 
-# Install ALL dependencies inside the container
+# Install ALL dependencies inside the container (includes devDependencies for testing)
 RUN npm install
 
 # Default command (overridden by docker-compose per service)

@@ -1,7 +1,11 @@
 #!/bin/bash
 # =============================================================================
+# ⚠️  WSZYSTKO DZIAŁA W KONTENERACH DOCKER — NIE uruchamiaj nic lokalnie!
+# =============================================================================
 # WebowoROS — Restaurant Order System
 # Skrypt zarządzania środowiskiem Docker (dev / prod / staging)
+# =============================================================================
+# ⚠️  WSZYSTKO DZIAŁA W KONTENERACH DOCKER — NIE uruchamiaj nic lokalnie!
 # =============================================================================
 
 set -e
@@ -166,7 +170,7 @@ db() {
       ;;
     seed)
       log_step "Seed bazy danych"
-      docker compose -f "$COMPOSE_DEV" exec api sh -c "npx ts-node prisma/seed.ts"
+      docker compose -f "$COMPOSE_DEV" exec api sh -c "npx tsx prisma/seed.ts && npx tsx prisma/seed-upsell.ts"
       ;;
     studio)
       log_step "Prisma Studio (otwiera się w przeglądarce)"
@@ -215,6 +219,45 @@ test() {
   esac
 }
 
+# Funkcja — e2e (Playwright E2E tests inside Docker)
+e2e() {
+  local mode="${1:-headless}"
+  COMPOSE_TEST="${SCRIPT_DIR}/infra/docker/docker-compose.test.yml"
+
+  case "$mode" in
+    headless)
+      log_step "Playwright E2E tests (headless, inside Docker container)"
+      docker compose -f "$COMPOSE_DEV" -f "$COMPOSE_TEST" run --rm e2e
+      ;;
+    ui)
+      log_step "Playwright E2E tests with UI mode (inside Docker container)"
+      log_warn "UI mode opens a browser inside the container. Use VNC or X11 forwarding."
+      docker compose -f "$COMPOSE_DEV" -f "$COMPOSE_TEST" run --rm e2e         sh -c "npx playwright test --ui --host=0.0.0.0 --port=9323"
+      ;;
+    report)
+      log_step "Extracting Playwright HTML report from container"
+      docker compose -f "$COMPOSE_DEV" -f "$COMPOSE_TEST" run --rm e2e         sh -c "npx playwright test --reporter=html && cp -r /app/e2e-report /tmp/report"
+      docker cp "$(docker compose -f $COMPOSE_DEV -f $COMPOSE_TEST ps -q e2e | head -1):/tmp/report" ./e2e-report 2>/dev/null ||         log_warn "Report extraction requires running tests first: ./start.sh e2e"
+      ;;
+    debug)
+      log_step "Playwright E2E debug mode (inside Docker container)"
+      docker compose -f "$COMPOSE_DEV" -f "$COMPOSE_TEST" run --rm e2e         sh -c "npx playwright test --debug"
+      ;;
+    *)
+      log_info "Dostępne tryby: headless, ui, report, debug"
+      log_info "  headless — uruchom testy w tle (domyślnie)"
+      log_info "  ui       — tryb interaktywny z podglądem"
+      log_info "  report   — wygeneruj i pobierz raport HTML"
+      log_info "  debug    — debugowanie krok po kroku"
+      ;;
+  esac
+}
+
+# Funkcja — health (szybki diagnostyka)
+health() {
+  "${SCRIPT_DIR}/health.sh"
+}
+
 # Funkcja — backup (backup bazy danych)
 backup() {
   local backup_file="backup_$(date +%Y%m%d_%H%M%S).sql"
@@ -253,6 +296,28 @@ deploy() {
   log_ok "Stack wdrożony: webowo-ros"
 }
 
+# Funkcja — network (pokaż IP i status sieci)
+network() {
+  log_step "Konfiguracja sieci lokalnej"
+  echo
+  log_info "Adresy IP Raspberry Pi w sieci lokalnej:"
+  ip addr show | grep "inet " | grep -v "127.0.0.1" | awk '{print "  " $2}' | cut -d/ -f1
+  echo
+  log_info "Aby uzyskać dostęp z laptopa/telefonu w tej samej sieci:"
+  echo "  1. Znajdź IP powyżej (np. 192.168.1.50)"
+  echo "  2. Edytuj .env: NETWORK_HOST=192.168.1.50"
+  echo "  3. Zrestartuj: ./start.sh restart"
+  echo
+  log_info "Dostępne adresy po konfiguracji:"
+  echo "  Web (klient):      http://192.168.1.50:3000"
+  echo "  Dashboard (admin): http://192.168.1.50:3001"
+  echo "  API:               http://192.168.1.50:4000/v1"
+  echo "  Swagger:           http://192.168.1.50:4000/api-docs"
+  echo
+  log_info "Status Docker networks:"
+  docker network ls | grep ros-net || log_warn "Sieć ros-net nie istnieje — uruchom ./start.sh dev"
+}
+
 # Funkcja — help
 help() {
   cat << EOF
@@ -279,6 +344,8 @@ ${YELLOW}Zarządzanie danymi:${NC}
 ${YELLOW}Development:${NC}
   shell [serwis]   Wejdź do shell kontenera (domyślnie: api)
   test [target]    Uruchom testy: api, web, dashboard, all
+  e2e [tryb]       Playwright E2E tests (WSZYSTKO w kontenerze Docker):
+                   headless, ui, report, debug
 
 ${YELLOW}Deployment:${NC}
   deploy           Wdróż stack do Docker Swarm
@@ -288,7 +355,12 @@ ${YELLOW}Przykłady:${NC}
   ./start.sh logs api               # Logi API
   ./start.sh shell web              # Shell w kontenerze web
   ./start.sh db seed                # Seed bazy danych
-  ./start.sh test all               # Wszystkie testy
+  ./start.sh test all               # Wszystkie testy (w kontenerach)
+  ./start.sh e2e                    # Playwright E2E (w kontenerze)
+  ./start.sh e2e report             # Raport HTML z testów E2E
+  ./start.sh network                # Pokaż IP i konfigurację sieci
+  ./start.sh backup                 # Kopia zapasowa bazy
+  ./start.sh restore backups/...    # Przywróć bazę
 
 EOF
 }
@@ -305,6 +377,11 @@ case "${1:-help}" in
   shell)    shell "$2" ;;
   db)       db "$2" ;;
   test)     test "$2" ;;
+  e2e)      e2e "$2" ;;
+  network)  network ;;
+  health)   health ;;
+  backup)   backup "$2" ;;
+  restore)  restore "$2" ;;
   backup)   backup ;;
   restore)  restore "$2" ;;
   deploy)   deploy ;;

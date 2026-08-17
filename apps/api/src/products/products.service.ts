@@ -13,10 +13,6 @@ export class ProductsService {
         variants: { where: { isActive: true } },
         addons: { where: { isActive: true } },
         badges: { where: { isActive: true } },
-        upsellConfigs: {
-          where: { upsellConfig: { isActive: true } },
-          include: { upsellConfig: true },
-        },
       },
     });
     if (!product) {
@@ -33,6 +29,31 @@ export class ProductsService {
         addons: { where: { isActive: true } },
         badges: { where: { isActive: true } },
       },
+    });
+  }
+
+  async findByCategory(categoryId: string) {
+    return this.prisma.product.findMany({
+      where: { categoryId, isAvailable: true, isDeleted: false },
+      include: {
+        variants: { where: { isActive: true } },
+        addons: { where: { isActive: true } },
+        badges: { where: { isActive: true } },
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async findAll() {
+    return this.prisma.product.findMany({
+      where: { isDeleted: false },
+      include: {
+        category: true,
+        variants: { where: { isActive: true } },
+        addons: { where: { isActive: true } },
+        badges: { where: { isActive: true } },
+      },
+      orderBy: { sortOrder: 'asc' },
     });
   }
 }

@@ -1,4 +1,5 @@
 "use client";
+import DashboardShell from "@/components/dashboard-shell";
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
@@ -43,7 +44,9 @@ export default function KDSPage() {
   // Timer refresh
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(interval);
+    return (
+      <DashboardShell>
+        ) => clearInterval(interval);
   }, []);
 
   // WebSocket
@@ -184,5 +187,6 @@ export default function KDSPage() {
         )}
       </main>
     </div>
-  );
+      </DashboardShell>
+    );
 }

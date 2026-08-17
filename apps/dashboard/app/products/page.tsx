@@ -1,4 +1,5 @@
 "use client";
+import DashboardShell from "@/components/dashboard-shell";
 
 import { useState, useCallback } from "react";
 import { Button, Input } from "@ros/ui";
@@ -80,7 +81,8 @@ export default function ProductsPage() {
   }, [editingProduct, refetch]);
 
   return (
-    <div className="space-y-6">
+      <DashboardShell>
+        <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">🍕 Produkty</h2>
         <Button onClick={handleAdd}>+ Dodaj produkt</Button>
@@ -134,5 +136,6 @@ export default function ProductsPage() {
         loading={saving}
       />
     </div>
-  );
+      </DashboardShell>
+    );
 }

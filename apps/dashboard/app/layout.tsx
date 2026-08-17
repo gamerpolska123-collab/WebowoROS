@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGuard } from "@/lib/auth-guard";
+import "../sentry.client.config";
 
 const inter = Inter({ subsets: ["latin"] });
 

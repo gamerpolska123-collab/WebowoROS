@@ -1,4 +1,5 @@
 {
+  "//": "⚠️  WSZYSTKIE SKRYPTY URUCHAMIAJ W KONTENERZE: docker compose exec <service> npm run <script>",
   "name": "@ros/printer-service",
   "version": "0.0.1",
   "private": true,

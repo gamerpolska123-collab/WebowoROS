@@ -1,4 +1,5 @@
 "use client";
+import DashboardShell from "@/components/dashboard-shell";
 
 import { useState, useCallback } from "react";
 import { Card, CardContent, Button } from "@ros/ui";
@@ -88,7 +89,8 @@ export default function OrdersPage() {
   }, [setFilters, setPage]);
 
   return (
-    <div className="space-y-6">
+      <DashboardShell>
+        <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">📦 Zamówienia</h2>
         <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
@@ -141,5 +143,6 @@ export default function OrdersPage() {
         onClose={() => setDetailOpen(false)}
       />
     </div>
-  );
+      </DashboardShell>
+    );
 }

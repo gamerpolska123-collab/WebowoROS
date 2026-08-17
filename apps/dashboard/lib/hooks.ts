@@ -110,3 +110,19 @@ export function useStats() {
 
   return { data, loading, error };
 }
+
+
+export function useSalesReport(period: 'daily' | 'weekly' | 'monthly' = 'daily', days = 30) {
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    dashApi.getSalesReport(period, days)
+      .then(setData)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [period, days]);
+
+  return { data, loading, error };
+}

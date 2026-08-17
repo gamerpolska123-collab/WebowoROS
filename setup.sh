@@ -1,66 +1,104 @@
 #!/bin/bash
-# WebowoROS — Development Setup Script
-# Run this after cloning the repository
+# =============================================================================
+# WebowoROS — First Time Setup Script
+# Run this once after cloning/unzipping the repository
+# =============================================================================
 
 set -e
 
-echo "🍕 WebowoROS Development Setup"
-echo "==============================="
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Check Node.js version
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 20 ]; then
-    echo "❌ Node.js 20+ required. Found: $(node -v)"
-    exit 1
-fi
-echo "✅ Node.js $(node -v)"
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+log_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# Check npm version
-NPM_VERSION=$(npm -v | cut -d'.' -f1)
-if [ "$NPM_VERSION" -lt 10 ]; then
-    echo "❌ npm 10+ required. Found: $(npm -v)"
-    exit 1
-fi
-echo "✅ npm $(npm -v)"
+echo "═══════════════════════════════════════════════════════════════"
+echo "  WebowoROS — First Time Setup"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
 
 # Check Docker
-if command -v docker &> /dev/null; then
-    echo "✅ Docker $(docker -v)"
+log_info "Checking Docker..."
+if ! command -v docker &> /dev/null; then
+    log_error "Docker not found. Install Docker first:"
+    echo "  curl -fsSL https://get.docker.com | sh"
+    exit 1
+fi
+if ! command -v docker compose &> /dev/null; then
+    log_error "Docker Compose not found."
+    exit 1
+fi
+log_success "Docker OK"
+
+# Check Node.js (optional, for local dev tools)
+if command -v node &> /dev/null; then
+    NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+    if [ "$NODE_VERSION" -ge 20 ]; then
+        log_success "Node.js $(node -v) OK"
+    else
+        log_warn "Node.js $(node -v) — version 20+ recommended"
+    fi
 else
-    echo "⚠️ Docker not found. Install Docker for full development."
+    log_warn "Node.js not found (optional, all dev tools run in Docker)"
 fi
 
-# Copy environment file
-if [ ! -f .env ]; then
-    cp .env.example .env
-    echo "✅ Created .env from .env.example"
-    echo "⚠️  IMPORTANT: Edit .env and set your secrets!"
+# Create .env from example
+if [ ! -f "${SCRIPT_DIR}/.env" ]; then
+    log_info "Creating .env from .env.example..."
+    cp "${SCRIPT_DIR}/.env.example" "${SCRIPT_DIR}/.env"
+    log_success ".env created"
+    log_warn "IMPORTANT: Edit .env and change SECRETS before production!"
+    echo ""
+    echo "  nano ${SCRIPT_DIR}/.env"
+    echo ""
 else
-    echo "✅ .env already exists"
+    log_warn ".env already exists — skipping"
 fi
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install
+# Create uploads directory
+mkdir -p "${SCRIPT_DIR}/uploads"
+log_success "Uploads directory created"
+
+# Create backups directory
+mkdir -p "${SCRIPT_DIR}/backups"
+log_success "Backups directory created"
+
+# Build Docker images
+log_info "Building Docker images (this may take 5-10 minutes)..."
+docker compose -f "${SCRIPT_DIR}/infra/docker/docker-compose.yml" build --no-cache
+log_success "Docker images built"
 
 # Generate Prisma client
-echo "🔄 Generating Prisma client..."
-npm run db:generate
+log_info "Generating Prisma client..."
+docker compose -f "${SCRIPT_DIR}/infra/docker/docker-compose.yml" run --rm api sh -c "cd /app/apps/api && npx prisma generate"
+log_success "Prisma client generated"
 
-# Run database migrations
-echo "🗄 Running database migrations..."
-npm run db:migrate
-
-# Seed database
-echo "🌱 Seeding database..."
-npm run db:seed
+# Start services
+log_info "Starting services..."
+"${SCRIPT_DIR}/start.sh" dev
 
 echo ""
-echo "✅ Setup complete!"
+echo "═══════════════════════════════════════════════════════════════"
+echo "  ✅ Setup complete!"
+echo "═══════════════════════════════════════════════════════════════"
 echo ""
-echo "Next steps:"
-echo "  1. Edit .env and configure your secrets"
-echo "  2. Start development: npm run dev"
-echo "  3. Open http://localhost:3000 (web)"
-echo "  4. Open http://localhost:3001 (dashboard)"
-echo "  5. API runs on http://localhost:4000"
+echo "Services starting... Check logs with:"
+echo "  ./start.sh logs"
+echo ""
+echo "Default access:"
+echo "  Web:       http://localhost:3000"
+echo "  Dashboard: http://localhost:3001"
+echo "  API:       http://localhost:4000/v1"
+echo "  Swagger:   http://localhost:4000/api-docs"
+echo ""
+echo "For network access (laptop/phone):"
+echo "  ./start.sh network"
+echo "  # Edit .env: NETWORK_HOST=<your-pi-ip>"
+echo "  ./start.sh restart"
+echo ""
