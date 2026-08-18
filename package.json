@@ -2,7 +2,7 @@
   "name": "weboworos",
   "version": "1.0.0",
   "private": true,
-  "description": "Restaurant Order System — monorepo z Next.js, NestJS, Prisma, Docker",
+  "description": "Restaurant Order System - monorepo (Turborepo + npm workspaces)",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -13,20 +13,21 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "clean": "turbo run clean",
+    "test:e2e": "turbo run test:e2e",
+    "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "turbo run db:seed",
-    "db:generate": "turbo run db:generate",
     "db:studio": "turbo run db:studio",
-    "e2e": "echo \"Use: ./start.sh e2e  (runs inside Docker container)\"",
-    "e2e:ui": "echo \"Use: ./start.sh e2e:ui  (runs inside Docker container)\"",
-    "e2e:report": "echo \"Use: ./start.sh e2e:report  (shows report from container)\"",
-    "install:containers": "docker compose -f infra/docker/docker-compose.yml build",
-    "install:all": "echo \"All dependencies are installed inside containers via Dockerfile.dev\""
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "docker:build": "docker compose -f infra/docker/docker-compose.yml build"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
-    "@playwright/test": "^1.46.0"
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.4"
   },
   "engines": {
     "node": ">=20.0.0",
