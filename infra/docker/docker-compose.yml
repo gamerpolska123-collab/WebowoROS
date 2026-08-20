@@ -1,0 +1,208 @@
+# =============================================================================
+# WebowoROS — Docker Compose Development
+# ⚠️  WSZYSTKO DZIAŁA W KONTENERACH DOCKER — nie uruchamiaj npm/pnpm lokalnie!
+# 
+# Użycie:
+#   ./start.sh dev     — start wszystkich serwisów
+#   ./start.sh test    — testy w kontenerach
+#   ./start.sh e2e     — Playwright E2E w kontenerach
+#   ./start.sh db seed — seed bazy w kontenerze
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ros-postgres
+    environment:
+      POSTGRES_USER: ros_user
+      POSTGRES_PASSWORD: ros_password
+      POSTGRES_DB: restaurant_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ros-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros_user -d restaurant_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ros-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - ros-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.dev
+    container_name: ros-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - DATABASE_URL=postgresql://ros_user:ros_password@postgres:5432/restaurant_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://192.168.1.28:3000,http://192.168.1.28:3001,http://web:3000,http://dashboard:3001,http://192.168.1.28:3000,http://192.168.1.28:3001
+      - UPLOAD_BASE_URL=/uploads/products
+    volumes:
+      - ../../apps/api:/app/apps/api
+      - ../../packages:/app/packages
+      - uploads_data:/app/uploads
+      - api_node_modules:/app/node_modules
+      - api_app_node_modules:/app/apps/api/node_modules
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+    networks:
+      - ros-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: >
+      sh -c "cd /app/apps/api && \
+             npx prisma generate && \
+             npx prisma db push --accept-data-loss && \
+             (npx tsx prisma/seed.ts && npx tsx prisma/seed-upsell.ts || \
+              (echo '' && \
+               echo '═══════════════════════════════════════════════════════════════' && \
+               echo '  ⚠️  [ERROR HANDLER] SEED FAILED — API WILL START ANYWAY' && \
+               echo '═══════════════════════════════════════════════════════════════' && \
+               echo '  ❌ Database seeding failed. The API will start without seed data.' && \
+               echo '  🔒 AFFECTED / DISABLED FEATURES:' && \
+               echo '     • Menu products (empty catalog)' && \
+               echo '     • Admin account (no default admin user)' && \
+               echo '     • Site config (default theme/settings missing)' && \
+               echo '     • Upsell & promo rules (not seeded)' && \
+               echo '  💡 TO FIX: docker exec ros-api npx tsx prisma/seed.ts' && \
+               echo '═══════════════════════════════════════════════════════════════' && \
+               echo '')) && \
+             npx nest start --watch"
+
+  web:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.dev
+    container_name: ros-web
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://192.168.1.28:4000/v1
+      - NEXT_PUBLIC_WS_URL=ws://192.168.1.28:4001
+    volumes:
+      - ../../apps/web:/app/apps/web
+      - ../../packages:/app/packages
+      - web_node_modules:/app/node_modules
+      - web_app_node_modules:/app/apps/web/node_modules
+    ports:
+      - "3000:3000"
+    networks:
+      - ros-net
+    command: npm run dev --workspace=@ros/web -- --hostname 0.0.0.0
+
+  dashboard:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.dev
+    container_name: ros-dashboard
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://192.168.1.28:4000/v1
+      - NEXT_PUBLIC_WS_URL=ws://192.168.1.28:4001
+    volumes:
+      - ../../apps/dashboard:/app/apps/dashboard
+      - ../../packages:/app/packages
+      - dashboard_node_modules:/app/node_modules
+      - dashboard_app_node_modules:/app/apps/dashboard/node_modules
+    ports:
+      - "3001:3001"
+    networks:
+      - ros-net
+    command: npm run dev --workspace=@ros/dashboard -- --hostname 0.0.0.0
+
+  printer-service:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.dev
+    container_name: ros-printer
+    privileged: true
+    depends_on:
+      - redis
+    volumes:
+      - /dev/usb:/dev/usb
+      - ../../apps/printer-service:/app/apps/printer-service
+      - ../../packages:/app/packages
+      - printer_node_modules:/app/node_modules
+      - printer_app_node_modules:/app/apps/printer-service/node_modules
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PRINTER_TYPE=escpos
+      - PRINTER_INTERFACE=usb
+    networks:
+      - ros-net
+    command: npm run dev --workspace=@ros/printer-service
+
+
+  storybook:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.dev
+    container_name: ros-storybook
+    depends_on:
+      - api
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../../packages/ui:/app/packages/ui
+      - ../../packages:/app/packages
+      - storybook_node_modules:/app/node_modules
+    ports:
+      - "6006:6006"
+    networks:
+      - ros-net
+    command: npm run storybook --workspace=@ros/ui
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  api_node_modules:
+  api_app_node_modules:
+  web_node_modules:
+  web_app_node_modules:
+  dashboard_node_modules:
+  dashboard_app_node_modules:
+  printer_node_modules:
+  printer_app_node_modules:
+  storybook_node_modules:
+
+networks:
+  ros-net:
+    driver: bridge

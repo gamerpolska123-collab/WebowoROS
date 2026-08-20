@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://domena.pl/sitemap.xml
+
+# Disallow admin paths
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /track/
+
+# Crawl-delay for bots
+Crawl-delay: 1

@@ -1,0 +1,19 @@
+{
+  "name": "@ros/shared-types",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "test": "echo \"No tests yet\""
+  },
+  "devDependencies": {
+    "@ros/config": "*",
+    "typescript": "^5.5.4"
+  }
+}

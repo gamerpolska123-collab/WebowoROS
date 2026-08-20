@@ -1,0 +1,25 @@
+{
+  "name": "@ros/config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./tsconfig.base.json",
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.9.0",
+    "eslint": "^9.9.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.18.0",
+    "@next/eslint-plugin-next": "^14.2.5"
+  },
+  "scripts": {
+    "build": "echo \"No build needed for config package\"",
+    "dev": "echo \"No dev needed for config package\"",
+    "lint": "echo \"No lint needed for config package\"",
+    "typecheck": "echo \"No typecheck needed for config package\"",
+    "clean": "rm -rf dist",
+    "test": "echo \"No tests for config package\""
+  }
+}

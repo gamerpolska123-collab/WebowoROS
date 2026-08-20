@@ -1,0 +1,507 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { OrderStatus, DeliveryType, Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { MenuService } from '../menu/menu.service';
+import { RedisService } from '../redis/redis.service';
+
+@Injectable()
+export class AdminService {
+  constructor(
+    private prisma: PrismaService,
+    private menuService: MenuService,
+    private redis: RedisService,
+  ) {}
+
+  // ============================================================
+  // PRODUCTS CRUD
+  // ============================================================
+  async getProducts() {
+    return this.prisma.product.findMany({
+      where: { isDeleted: false },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        category: { select: { id: true, name: true } },
+        variants: true,
+        addons: true,
+        badges: true,
+      },
+    });
+  }
+
+  async createProduct(data: Record<string, unknown>) {
+    const dto = data as Record<string, unknown>;
+    const { variants, addons, ...productData } = dto;
+
+    const product = await this.prisma.product.create({
+      data: {
+        ...productData,
+        variants: variants && Array.isArray(variants) && variants.length > 0
+          ? { create: variants as Prisma.VariantCreateWithoutProductInput[] }
+          : undefined,
+        addons: addons && Array.isArray(addons) && addons.length > 0
+          ? { create: addons as Prisma.ProductAddonCreateWithoutProductInput[] }
+          : undefined,
+      } as Prisma.ProductCreateInput,
+      include: {
+        category: { select: { id: true, name: true } },
+        variants: true,
+        addons: true,
+        badges: true,
+      },
+    });
+    await this.menuService.invalidateMenuCache();
+    return product;
+  }
+
+  async updateProduct(id: string, data: Record<string, unknown>) {
+    await this.prisma.product.findUniqueOrThrow({ where: { id } });
+    const dto = data as Record<string, unknown>;
+    const { variants, addons, ...productData } = dto;
+
+    const product = await this.prisma.$transaction(async (tx) => {
+      // Delete existing variants and addons if new ones are provided
+      if (variants !== undefined) {
+        await tx.variant.deleteMany({ where: { productId: id } });
+      }
+      if (addons !== undefined) {
+        await tx.productAddon.deleteMany({ where: { productId: id } });
+      }
+
+      return tx.product.update({
+        where: { id },
+        data: {
+          ...productData,
+          variants: variants && Array.isArray(variants) && variants.length > 0
+            ? { create: variants as Prisma.VariantCreateWithoutProductInput[] }
+            : undefined,
+          addons: addons && Array.isArray(addons) && addons.length > 0
+            ? { create: addons as Prisma.ProductAddonCreateWithoutProductInput[] }
+            : undefined,
+        } as Prisma.ProductUpdateInput,
+        include: {
+          category: { select: { id: true, name: true } },
+          variants: true,
+          addons: true,
+          badges: true,
+        },
+      });
+    });
+
+    await this.menuService.invalidateMenuCache();
+    return product;
+  }
+
+  async deleteProduct(id: string) {
+    await this.prisma.product.findUniqueOrThrow({ where: { id } });
+    await this.prisma.product.update({ where: { id }, data: { isDeleted: true, isAvailable: false } });
+    await this.menuService.invalidateMenuCache();
+    return { message: 'Product soft-deleted' };
+  }
+
+  // ============================================================
+  // CATEGORIES CRUD
+  // ============================================================
+
+  async reorderCategories(updates: { id: string; sortOrder: number }[]) {
+    const results = await this.prisma.$transaction(
+      updates.map((u) =>
+        this.prisma.category.update({
+          where: { id: u.id },
+          data: { sortOrder: u.sortOrder },
+        }),
+      ),
+    );
+    return { message: 'Categories reordered', count: results?.length ?? 0 };
+  }
+  async getCategories() {
+    return this.prisma.category.findMany({ orderBy: { name: 'asc' } });
+  }
+
+  async createCategory(data: Record<string, unknown>) {
+    const category = await this.prisma.category.create({ data: data as Prisma.CategoryCreateInput });
+    await this.menuService.invalidateMenuCache();
+    return category;
+  }
+
+  async updateCategory(id: string, data: Record<string, unknown>) {
+    const category = await this.prisma.category.update({ where: { id }, data: data as Prisma.CategoryUpdateInput });
+    await this.menuService.invalidateMenuCache();
+    return category;
+  }
+
+  async deleteCategory(id: string) {
+    await this.prisma.category.update({ where: { id }, data: { isActive: false } });
+    await this.menuService.invalidateMenuCache();
+    return { message: 'Category deactivated' };
+  }
+
+  // ============================================================
+  // UPSELL CONFIGS
+  // ============================================================
+  async getUpsellConfigs() {
+    return this.prisma.upsellConfig.findMany({ orderBy: { priority: 'asc' } });
+  }
+
+  async createUpsellConfig(data: Record<string, unknown>) {
+    return this.prisma.upsellConfig.create({ data: data as Prisma.UpsellConfigCreateInput });
+  }
+
+  async updateUpsellConfig(id: string, data: Record<string, unknown>) {
+    return this.prisma.upsellConfig.update({ where: { id }, data: data as Prisma.UpsellConfigUpdateInput });
+  }
+
+  // ============================================================
+  // BUNDLE CONFIGS
+  // ============================================================
+  async getBundleConfigs() {
+    return this.prisma.bundleConfig.findMany();
+  }
+
+  async createBundleConfig(data: Record<string, unknown>) {
+    return this.prisma.bundleConfig.create({ data: data as Prisma.BundleConfigCreateInput });
+  }
+
+  async updateBundleConfig(id: string, data: Record<string, unknown>) {
+    return this.prisma.bundleConfig.update({ where: { id }, data: data as Prisma.BundleConfigUpdateInput });
+  }
+
+  // ============================================================
+  // PROMO CONFIGS
+  // ============================================================
+  async getPromoConfigs() {
+    return this.prisma.promoConfig.findMany();
+  }
+
+  async createPromoConfig(data: Record<string, unknown>) {
+    return this.prisma.promoConfig.create({ data: data as Prisma.PromoConfigCreateInput });
+  }
+
+  async updatePromoConfig(id: string, data: Record<string, unknown>) {
+    return this.prisma.promoConfig.update({ where: { id }, data: data as Prisma.PromoConfigUpdateInput });
+  }
+
+  // ============================================================
+  // SITE CONFIG
+  // ============================================================
+  async getSiteConfig() {
+    return this.prisma.siteConfig.findFirst();
+  }
+
+  async updateSiteConfig(id: string, data: Record<string, unknown>) {
+    const config = await this.prisma.siteConfig.update({ where: { id }, data });
+    await this.menuService.invalidateMenuCache();
+    return config;
+  }
+
+  // ============================================================
+  // DASHBOARD STATS
+  // ============================================================
+  async getDashboardStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      todayOrders,
+      todayRevenue,
+      activeProducts,
+      totalCustomers,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.order.aggregate({
+        where: { createdAt: { gte: today }, status: { not: 'cancelled' } },
+        _sum: { finalAmount: true },
+      }),
+      this.prisma.product.count({ where: { isAvailable: true } }),
+      this.prisma.user.count({ where: { role: 'customer' } }),
+    ]);
+
+    return {
+      todayOrders,
+      todayRevenue: Number(todayRevenue._sum.finalAmount || 0),
+      activeProducts,
+      totalCustomers,
+    };
+  }
+
+
+  // ============================================================
+  // ORDERS (admin + kitchen + driver)
+  // ============================================================
+  async getOrders(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    deliveryType?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.OrderWhereInput = {};
+
+    if (params.status) {
+      where.status = params.status as OrderStatus;
+    }
+    if (params.deliveryType) {
+      where.deliveryType = params.deliveryType as DeliveryType;
+    }
+    if (params.dateFrom || params.dateTo) {
+      where.createdAt = {};
+      if (params.dateFrom) where.createdAt.gte = new Date(params.dateFrom);
+      if (params.dateTo) where.createdAt.lte = new Date(params.dateTo);
+    }
+    if (params.search) {
+      where.OR = [
+        { orderNumber: { contains: params.search, mode: 'insensitive' } },
+        { contact: { path: ['phone'], string_contains: params.search } },
+        { contact: { path: ['firstName'], string_contains: params.search } },
+        { contact: { path: ['lastName'], string_contains: params.search } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          items: {
+            include: {
+              product: { select: { name: true, imageUrl: true } },
+              addons: true,
+            },
+          },
+          user: { select: { firstName: true, lastName: true, phone: true } },
+          history: { orderBy: { createdAt: 'desc' }, take: 1 },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async updateOrderStatus(id: string, newStatus: OrderStatus, note?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Walidacja maszyny stanów
+    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+      pending_payment: [OrderStatus.paid, OrderStatus.cancelled],
+      paid: [OrderStatus.confirmed, OrderStatus.cancelled],
+      confirmed: [OrderStatus.preparing, OrderStatus.cancelled],
+      preparing: [OrderStatus.ready_for_pickup, OrderStatus.cancelled],
+      ready_for_pickup: [OrderStatus.out_for_delivery, OrderStatus.delivered],
+      out_for_delivery: [OrderStatus.delivered, OrderStatus.cancelled],
+      delivered: [],
+      cancelled: [],
+    };
+
+    if (!validTransitions[order.status].includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${order.status} to ${newStatus}`
+      );
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: {
+        status: newStatus,
+        history: {
+          create: {
+            status: newStatus,
+            note: note || `Status changed to ${newStatus}`,
+          },
+        },
+      },
+      include: {
+        items: { include: { product: true } },
+        history: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    // Publish do Redis
+    await this.redis.publish('order:updates', JSON.stringify({
+      orderId: updated.id,
+      status: updated.status,
+      timestamp: new Date().toISOString(),
+    }));
+
+    if (newStatus === OrderStatus.confirmed || newStatus === OrderStatus.preparing) {
+      await this.redis.publish('kitchen:new', JSON.stringify({
+        orderId: updated.id,
+        orderNumber: updated.orderNumber,
+        status: updated.status,
+        items: updated.items,
+      }));
+    }
+
+    return updated;
+  }
+
+  // ============================================================
+
+  // SALES REPORT — daily, weekly, monthly revenue breakdown
+  async getSalesReport(period: 'daily' | 'weekly' | 'monthly' = 'daily', days = 30) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        status: { not: OrderStatus.cancelled },
+      },
+      select: {
+        createdAt: true,
+        finalAmount: true,
+        status: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const report: Record<string, { date: string; revenue: number; orders: number; avgOrderValue: number }> = {};
+
+    for (const order of orders) {
+      let key: string;
+      const d = new Date(order.createdAt);
+
+      if (period === 'daily') {
+        key = d.toISOString().split('T')[0];
+      } else if (period === 'weekly') {
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      if (!report[key]) {
+        report[key] = { date: key, revenue: 0, orders: 0, avgOrderValue: 0 };
+      }
+      report[key].revenue += Number(order.finalAmount);
+      report[key].orders += 1;
+    }
+
+    const result = Object.values(report).map((r) => ({
+      ...r,
+      revenue: Number(r.revenue.toFixed(2)),
+      avgOrderValue: Number((r.revenue / r.orders).toFixed(2)),
+    }));
+
+    const totalRevenue = result.reduce((sum, r) => sum + r.revenue, 0);
+    const totalOrders = result.reduce((sum, r) => sum + r.orders, 0);
+
+    return {
+      period,
+      days,
+      data: result,
+      summary: {
+        totalRevenue: Number(totalRevenue.toFixed(2)),
+        totalOrders,
+        avgOrderValue: totalOrders > 0 ? Number((totalRevenue / totalOrders).toFixed(2)) : 0,
+      },
+    };
+  }
+
+  // STATS
+  // ============================================================
+  async getStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalOrders,
+      todayOrders,
+      totalRevenue,
+      todayRevenue,
+      pendingOrders,
+      preparingOrders,
+    ] = await Promise.all([
+      this.prisma.order.count(),
+      this.prisma.order.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.order.aggregate({ _sum: { finalAmount: true } }),
+      this.prisma.order.aggregate({ where: { createdAt: { gte: today } }, _sum: { finalAmount: true } }),
+      this.prisma.order.count({ where: { status: { in: ['pending_payment', 'paid', 'confirmed'] } } }),
+      this.prisma.order.count({ where: { status: 'preparing' } }),
+    ]);
+
+    return {
+      totalOrders,
+      todayOrders,
+      totalRevenue: Number(totalRevenue._sum.finalAmount || 0),
+      todayRevenue: Number(todayRevenue._sum.finalAmount || 0),
+      pendingOrders,
+      preparingOrders,
+    };
+  }
+
+  // ─── Product Variants ───
+
+  async getProductVariants(productId: string) {
+    return this.prisma.variant.findMany({
+      where: { productId },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createVariant(productId: string, data: { name: string; priceAdjustment: number }) {
+    return this.prisma.variant.create({
+      data: {
+        ...data,
+        productId,
+      },
+    });
+  }
+
+  async updateVariant(variantId: string, data: { name?: string; priceAdjustment?: number; isActive?: boolean }) {
+    return this.prisma.variant.update({
+      where: { id: variantId },
+      data,
+    });
+  }
+
+  async deleteVariant(variantId: string) {
+    return this.prisma.variant.delete({
+      where: { id: variantId },
+    });
+  }
+
+  // ─── Product Addons ───
+
+  async getProductAddons(productId: string) {
+    return this.prisma.productAddon.findMany({
+      where: { productId },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createAddon(productId: string, data: { name: string; price: number; maxQuantity?: number }) {
+    return this.prisma.productAddon.create({
+      data: {
+        ...data,
+        productId,
+      },
+    });
+  }
+
+  async updateAddon(addonId: string, data: { name?: string; price?: number; maxQuantity?: number; isActive?: boolean }) {
+    return this.prisma.productAddon.update({
+      where: { id: addonId },
+      data,
+    });
+  }
+
+  async deleteAddon(addonId: string) {
+    return this.prisma.productAddon.delete({
+      where: { id: addonId },
+    });
+  }
+
+}

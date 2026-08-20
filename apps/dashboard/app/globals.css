@@ -1,0 +1,31 @@
+
+:root {
+  --primary: #E63946;
+  --primary-foreground: #FFFFFF;
+  --destructive: #D62828;
+  --destructive-foreground: #FFFFFF;
+  --accent: #2A9D8F;
+  --accent-foreground: #FFFFFF;
+  --background: #FFFFFF;
+  --foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --border: #E5E7EB;
+  --ring: #E63946;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #111827;
+  --foreground: #F9FAFB;
+  --muted: #374151;
+  --muted-foreground: #9CA3AF;
+  --border: #374151;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ROS Animations */
+@import '@ros/ui/styles/animations.css';
